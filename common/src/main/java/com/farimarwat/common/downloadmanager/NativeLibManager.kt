@@ -3,6 +3,7 @@ package com.yausername.youtubedl_common.downloadmanager
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
+import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -12,23 +13,20 @@ object NativeLibManager {
     private const val TAG = "NativeLibManager"
     private val supportedArchitectures = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
     private val baseUrls = listOf(
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffprobe.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/arm64-v8a/libpython.zip.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/arm64-v8a/libffmpeg.zip.so",
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.so"
     )
+    var DOWNLOAD_DIR:File? = null
 
     // Check if all necessary files exist in the libs directory
     fun isReady(context: Context): Boolean {
-        val libDir = context.getDir("libs", Context.MODE_PRIVATE)
+        DOWNLOAD_DIR = context.filesDir
         return supportedArchitectures.all { arch ->
             baseUrls.all { url ->
                 val fileUrl = url.replace("{arch}", arch)
                 val fileName = fileUrl.substringAfterLast('/')
-                File(libDir, fileName).exists()
+                File(DOWNLOAD_DIR, fileName).exists()
             }
         }
     }
@@ -38,7 +36,6 @@ object NativeLibManager {
         context: Context,
         callback: (ready: Boolean, error: Exception?) -> Unit = { _, _ -> }
     ) {
-        val libDir = context.getDir("libs", Context.MODE_PRIVATE)
         val scope = CoroutineScope(Dispatchers.IO)
 
         scope.launch {
@@ -49,10 +46,10 @@ object NativeLibManager {
                 for (url in baseUrls) {
                     val fileUrl = url.replace("{arch}", arch)
                     val fileName = fileUrl.substringAfterLast('/')
-                    val file = File(libDir, fileName)
+                    val file = File(DOWNLOAD_DIR, fileName)
 
                     if (!file.exists()) {
-                        Log.d(TAG, "Downloading $fileName for architecture $arch...")
+                        Timber.i("Downloading $fileName for architecture $arch...")
                         val success = downloadFile(fileUrl, file)
                         if (!success) {
                             downloadFailed = true
@@ -92,14 +89,21 @@ object NativeLibManager {
                     outputStream.flush()
                     outputStream.close()
                     inputStream.close()
-                    Log.i(TAG, "DownloadResponse: ${connection.responseCode}")
+                    Timber.i("DownloadResponse: ${connection.responseCode}")
+
+                    // Set chmod +x if the file is libpython.so
+                    if (destinationFile.name == "libpython.so") {
+                        destinationFile.setExecutable(true, false)
+                        Timber.i("Set executable permission for ${destinationFile.name}")
+                    }
+
                     true
                 } else {
-                    Log.e(TAG, "Failed to download $fileUrl. Response code: ${connection.responseCode}")
+                    Timber.i("Failed to download $fileUrl. Response code: ${connection.responseCode}")
                     false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error downloading $fileUrl", e)
+                Timber.i("Error downloading $fileUrl $e")
                 false
             }
         }

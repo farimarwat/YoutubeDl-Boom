@@ -44,4 +44,5 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(libs.commons.io)
     implementation(libs.commons.compress)
+    implementation(libs.timber)
 }

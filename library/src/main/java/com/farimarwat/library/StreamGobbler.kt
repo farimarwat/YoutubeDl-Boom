@@ -1,6 +1,7 @@
 package com.farimarwat.library
 
 import android.util.Log
+import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -12,7 +13,6 @@ internal class StreamGobbler(private val buffer: StringBuffer, private val strea
     init {
         start()
     }
-
     override fun run() {
         try {
             val `in`: Reader = InputStreamReader(stream, StandardCharsets.UTF_8)
@@ -21,7 +21,7 @@ internal class StreamGobbler(private val buffer: StringBuffer, private val strea
                 buffer.append(nextChar.toChar())
             }
         } catch (e: IOException) {
-            if (BuildConfig.DEBUG) Log.e(TAG, "failed to read stream", e)
+           Timber.i("Faile to read stream: ${e}")
         }
     }
 

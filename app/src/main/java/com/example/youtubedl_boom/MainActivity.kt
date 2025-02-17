@@ -13,13 +13,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.library.YoutubeDL
+import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.init(this){ success, error ->
-
+        YoutubeDL.getInstance().init(this){ success, error ->
+            val info = YoutubeDL.getInfo("https://vimeo.com/22439234")
+            Timber.i("Info: ${info.title}")
         }
         enableEdgeToEdge()
         setContent {

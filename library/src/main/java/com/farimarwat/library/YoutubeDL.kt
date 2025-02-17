@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 
 import com.yausername.youtubedl_common.SharedPrefsHelper
 import com.yausername.youtubedl_common.SharedPrefsHelper.update
+import com.yausername.youtubedl_common.downloadmanager.NativeLibManager
 import com.yausername.youtubedl_common.utils.ZipUtils.unzip
 import org.apache.commons.io.FileUtils
+import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
@@ -27,7 +29,23 @@ object YoutubeDL {
 
     @Synchronized
     @Throws(YoutubeDLException::class)
-    fun init(appContext: Context) {
+    fun init(appContext: Context, isInitialized:(Boolean,error:Exception?)->Unit={_, _ ->}) {
+        if(NativeLibManager.isReady(appContext)){
+            performInit(appContext)
+            isInitialized(true,null)
+        } else {
+            NativeLibManager.downloadLibFiles(appContext){success, error ->
+                if(success){
+                    performInit(appContext)
+                    isInitialized(true, null)
+                } else {
+                    isInitialized(false,error)
+                }
+            }
+        }
+    }
+
+    private fun performInit(appContext: Context){
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
         if (!baseDir.exists()) baseDir.mkdir()
@@ -50,7 +68,6 @@ object YoutubeDL {
         init_ytdlp(appContext, ytdlpDir)
         initialized = true
     }
-
     @Throws(YoutubeDLException::class)
     fun init_ytdlp(appContext: Context, ytdlpDir: File) {
         if (!ytdlpDir.exists()) ytdlpDir.mkdirs()
@@ -69,7 +86,7 @@ object YoutubeDL {
 
     @Throws(YoutubeDLException::class)
     fun initPython(appContext: Context, pythonDir: File) {
-        val pythonLib = File(binDir, pythonLibName)
+        val pythonLib = File(NativeLibManager.DOWNLOAD_DIR, pythonLibName)
         // using size of lib as version
         val pythonSize = pythonLib.length().toString()
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
@@ -172,6 +189,7 @@ object YoutubeDL {
         val command: MutableList<String?> = ArrayList()
         command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
         command.addAll(args)
+        Timber.i("Mycommand: ${command}")
         val processBuilder = ProcessBuilder(command)
         processBuilder.environment().apply {
             this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
