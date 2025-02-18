@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
@@ -20,16 +25,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.getInstance().init(this){ success, error ->
-            val info = YoutubeDL.getInfo("https://vimeo.com/22439234")
-            Timber.i("Info: ${info.title}")
-        }
         enableEdgeToEdge()
         setContent {
+            var videoInfo by remember { mutableStateOf("") }
+            LaunchedEffect(Unit) {
+                val job = YoutubeDL.getInstance().init(
+                    appContext = this@MainActivity,
+                    onSuccess = {
+                        val info = it.getInfo("https://vimeo.com/22439234")
+                        videoInfo = info.toString()
+                    },
+                    onError = {
+                        Timber.i(it)
+                    }
+                )
+            }
+
             YoutubeDlBoomTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = videoInfo,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }

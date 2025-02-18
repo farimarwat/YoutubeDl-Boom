@@ -21,6 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "YoutubeDl-Boom"
 include(":app")
-include(":common")
 include(":library")
-include(":aria2c")

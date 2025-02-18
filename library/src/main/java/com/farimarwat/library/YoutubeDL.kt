@@ -2,12 +2,18 @@ package com.farimarwat.library
 
 import android.content.Context
 import android.os.Build
+import com.farimarwat.common.SharedPrefsHelper
+import com.farimarwat.common.SharedPrefsHelper.update
+import com.farimarwat.downloadmanager.NativeLibManager
+import com.farimarwat.common.utils.ZipUtils.unzip
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-import com.yausername.youtubedl_common.SharedPrefsHelper
-import com.yausername.youtubedl_common.SharedPrefsHelper.update
-import com.yausername.youtubedl_common.downloadmanager.NativeLibManager
-import com.yausername.youtubedl_common.utils.ZipUtils.unzip
 import org.apache.commons.io.FileUtils
 import timber.log.Timber
 import java.io.File
@@ -27,22 +33,34 @@ object YoutubeDL {
     private var TMPDIR: String = ""
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
-    @Synchronized
     @Throws(YoutubeDLException::class)
-    fun init(appContext: Context, isInitialized:(Boolean,error:Exception?)->Unit={_, _ ->}) {
-        if(NativeLibManager.isReady(appContext)){
-            performInit(appContext)
-            isInitialized(true,null)
-        } else {
-            NativeLibManager.downloadLibFiles{success, error ->
-                if(success){
-                    performInit(appContext)
-                    isInitialized(true, null)
-                } else {
-                    isInitialized(false,error)
-                }
-            }
-        }
+     fun init(appContext: Context, onSuccess:(YoutubeDL)->Unit={}, onError:(Throwable)->Unit={}):Job {
+         val exception = CoroutineExceptionHandler { _, throwable ->
+             onError(throwable)
+         }
+         val job = Job()
+         val scope = CoroutineScope(Dispatchers.IO+job+exception)
+       return scope.launch {
+           if(NativeLibManager.isReady(appContext)){
+               performInit(appContext)
+               withContext(Dispatchers.Main){
+                   onSuccess(this@YoutubeDL)
+               }
+           } else {
+               NativeLibManager.downloadLibFiles{ success, error ->
+                   if(success){
+                       performInit(appContext)
+                       withContext(Dispatchers.Main){
+                           onSuccess(this@YoutubeDL)
+                       }
+                   } else {
+                       withContext(Dispatchers.Main){
+                           onSuccess(this@YoutubeDL)
+                       }
+                   }
+               }
+           }
+       }
     }
 
     private fun performInit(appContext: Context){
@@ -74,8 +92,7 @@ object YoutubeDL {
         val ytdlpBinary = File(ytdlpDir, ytdlpBin)
         if (!ytdlpBinary.exists()) {
             try {
-                val inputStream =
-                    appContext.resources.openRawResource(R.raw.ytdlp) /* will be renamed to yt-dlp */
+                val inputStream = File(NativeLibManager.DOWNLOAD_DIR, ytdlpBin).inputStream()
                 FileUtils.copyInputStreamToFile(inputStream, ytdlpBinary)
             } catch (e: Exception) {
                 FileUtils.deleteQuietly(ytdlpDir)

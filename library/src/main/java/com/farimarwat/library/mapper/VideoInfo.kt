@@ -75,8 +75,50 @@ class VideoInfo {
     val formats: ArrayList<VideoFormat>? = null
     val thumbnails: ArrayList<VideoThumbnail>? = null
 
-    //private ArrayList<VideoSubtitle> subtitles;
     @JsonProperty("manifest_url")
     val manifestUrl: String? = null
     val url: String? = null
+
+    override fun toString(): String {
+        return """
+            VideoInfo(
+                id=$id,
+                title=$title,
+                fulltitle=$fulltitle,
+                uploadDate=$uploadDate,
+                displayId=$displayId,
+                duration=$duration,
+                description=$description,
+                thumbnail=$thumbnail,
+                license=$license,
+                extractor=$extractor,
+                extractorKey=$extractorKey,
+                viewCount=$viewCount,
+                likeCount=$likeCount,
+                dislikeCount=$dislikeCount,
+                repostCount=$repostCount,
+                averageRating=$averageRating,
+                uploaderId=$uploaderId,
+                uploader=$uploader,
+                playerUrl=$playerUrl,
+                webpageUrl=$webpageUrl,
+                resolution=$resolution,
+                width=$width,
+                height=$height,
+                format=$format,
+                formatId=$formatId,
+                ext=$ext,
+                fileSize=$fileSize,
+                fileSizeApproximate=$fileSizeApproximate,
+                httpHeaders=$httpHeaders,
+                categories=$categories,
+                tags=$tags,
+                requestedFormats=$requestedFormats,
+                formats=$formats,
+                thumbnails=$thumbnails,
+                manifestUrl=$manifestUrl,
+                url=$url
+            )
+        """.trimIndent()
+    }
 }

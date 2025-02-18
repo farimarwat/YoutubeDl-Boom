@@ -1,10 +1,11 @@
 package com.farimarwat.library
 
 import android.content.Context
+import com.farimarwat.common.SharedPrefsHelper
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
-import com.yausername.youtubedl_common.SharedPrefsHelper
-import com.yausername.youtubedl_common.SharedPrefsHelper.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.IOException
@@ -52,8 +53,8 @@ internal object YoutubeDLUpdater {
     }
 
     private fun updateSharedPrefs(appContext: Context, tag: String, name: String) {
-        update(appContext, dlpVersionKey, tag)
-        update(appContext, dlpVersionNameKey, name)
+        SharedPrefsHelper.update(appContext, dlpVersionKey, tag)
+        SharedPrefsHelper.update(appContext, dlpVersionNameKey, name)
     }
 
     @Throws(IOException::class)
@@ -90,9 +91,12 @@ internal object YoutubeDLUpdater {
         return downloadUrl
     }
 
-    private fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
-        val url = URL(youtubeDLChannel.apiUrl)
-        return getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
+    suspend fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
+        return withContext(Dispatchers.IO){
+            val url = URL(youtubeDLChannel.apiUrl)
+            getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
+        }
+
     }
 
     @Throws(IOException::class)
