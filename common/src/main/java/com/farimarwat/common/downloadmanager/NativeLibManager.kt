@@ -34,11 +34,9 @@ object NativeLibManager {
 
     // Download all files (replace {arch} with the correct architecture for each)
     fun downloadLibFiles(
-        context: Context,
         callback: (ready: Boolean, error: Exception?) -> Unit = { _, _ -> }
     ) {
         val scope = CoroutineScope(Dispatchers.IO)
-
         scope.launch {
             var downloadError: Exception? = null
             var downloadFailed = false

@@ -34,7 +34,7 @@ object YoutubeDL {
             performInit(appContext)
             isInitialized(true,null)
         } else {
-            NativeLibManager.downloadLibFiles(appContext){success, error ->
+            NativeLibManager.downloadLibFiles{success, error ->
                 if(success){
                     performInit(appContext)
                     isInitialized(true, null)
@@ -87,7 +87,6 @@ object YoutubeDL {
     @Throws(YoutubeDLException::class)
     fun initPython(appContext: Context, pythonDir: File) {
         val pythonLib = File(NativeLibManager.DOWNLOAD_DIR, pythonLibName)
-        // using size of lib as version
         val pythonSize = pythonLib.length().toString()
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
             FileUtils.deleteQuietly(pythonDir)
