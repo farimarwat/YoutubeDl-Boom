@@ -1,8 +1,10 @@
-package com.farimarwat.common.downloadmanager
+package com.farimarwat.downloadmanager
 
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.farimarwat.library.YoutubeDL
+import com.farimarwat.library.YoutubeDLUpdater
 import kotlinx.coroutines.*
 import timber.log.Timber
 import java.io.File
@@ -13,7 +15,9 @@ import java.net.URL
 object NativeLibManager {
     private const val TAG = "NativeLibManager"
 
-    private val baseUrls = listOf(
+
+
+    private val baseUrls = mutableListOf(
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so",
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.zip.so",
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.zip.so",
@@ -23,21 +27,23 @@ object NativeLibManager {
         get() =  Build.SUPPORTED_ABIS[0]
 
     // Check if all necessary files exist in the libs directory
-    fun isReady(context: Context): Boolean {
-        DOWNLOAD_DIR = context.filesDir
-        return baseUrls.all { url ->
-            val fileUrl = url.replace("{arch}", arch)
-            val fileName = fileUrl.substringAfterLast('/')
-            File(DOWNLOAD_DIR, fileName).exists()
+    suspend fun isReady(context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            DOWNLOAD_DIR = context.filesDir
+            baseUrls.add(YoutubeDLUpdater.getYtdDownloadUrl(YoutubeDL.UpdateChannel.STABLE))
+            baseUrls.all { url ->
+                val fileUrl = url.replace("{arch}", arch)
+                val fileName = fileUrl.substringAfterLast('/')
+                File(DOWNLOAD_DIR, fileName).exists()
+            }
         }
     }
 
     // Download all files (replace {arch} with the correct architecture for each)
-    fun downloadLibFiles(
-        callback: (ready: Boolean, error: Exception?) -> Unit = { _, _ -> }
+    suspend fun downloadLibFiles(
+         callback: suspend (ready: Boolean, error: Exception?) -> Unit = { _, _ -> }
     ) {
-        val scope = CoroutineScope(Dispatchers.IO)
-        scope.launch {
+        withContext(Dispatchers.IO){
             var downloadError: Exception? = null
             var downloadFailed = false
             for (url in baseUrls) {
@@ -54,9 +60,7 @@ object NativeLibManager {
                     }
                 }
             }
-            withContext(Dispatchers.Main) {
-                callback(!downloadFailed, downloadError)
-            }
+            callback(!downloadFailed, downloadError)
         }
     }
 

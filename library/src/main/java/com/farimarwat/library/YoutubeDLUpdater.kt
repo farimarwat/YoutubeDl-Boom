@@ -4,6 +4,8 @@ import android.content.Context
 import com.farimarwat.common.SharedPrefsHelper
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.apache.commons.io.FileUtils
 import java.io.File
 import java.io.IOException
@@ -89,9 +91,12 @@ internal object YoutubeDLUpdater {
         return downloadUrl
     }
 
-    private fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
-        val url = URL(youtubeDLChannel.apiUrl)
-        return getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
+    suspend fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
+        return withContext(Dispatchers.IO){
+            val url = URL(youtubeDLChannel.apiUrl)
+            getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
+        }
+
     }
 
     @Throws(IOException::class)

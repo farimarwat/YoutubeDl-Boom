@@ -20,10 +20,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.getInstance().init(this){ success, error ->
+        val job = YoutubeDL.getInstance().init(this){ success, error ->
             val info = YoutubeDL.getInfo("https://vimeo.com/22439234")
             Timber.i("Info: ${info.title}")
         }
+
         enableEdgeToEdge()
         setContent {
             YoutubeDlBoomTheme {
