@@ -194,86 +194,88 @@ object YoutubeDL {
     class CanceledException : Exception()
 
     @Throws(YoutubeDLException::class, InterruptedException::class, CanceledException::class)
-    private fun execute(
+    suspend fun execute(
         request: YoutubeDLRequest,
         processId: String? = null,
         callback: ((Float, Long, String) -> Unit)? = null
     ): YoutubeDLResponse {
-        assertInit()
-        if (processId != null && idProcessMap.containsKey(processId)) throw YoutubeDLException("Process ID already exists")
-        // disable caching unless explicitly requested
-        if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
-            request.addOption("--no-cache-dir")
-        }
-
-        if (request.buildCommand().contains("libaria2c.so")) {
-            request
-                .addOption("--external-downloader-args", "aria2c:--summary-interval=1")
-                .addOption(
-                    "--external-downloader-args",
-                    "aria2c:--ca-certificate=$ENV_SSL_CERT_FILE"
-                )
-        }
-
-        /* Set ffmpeg location, See https://github.com/xibr/ytdlp-lazy/issues/1 */
-        request.addOption("--ffmpeg-location", ffmpegPath!!.absolutePath)
-        val youtubeDLResponse: YoutubeDLResponse
-        val process: Process
-        val exitCode: Int
-        val outBuffer = StringBuffer() //stdout
-        val errBuffer = StringBuffer() //stderr
-        val startTime = System.currentTimeMillis()
-        val args = request.buildCommand()
-        val command: MutableList<String?> = ArrayList()
-        command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
-        command.addAll(args)
-        Timber.i("Mycommand: ${command}")
-        val processBuilder = ProcessBuilder(command)
-        processBuilder.environment().apply {
-            this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
-            this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
-            this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
-            this["PYTHONHOME"] = ENV_PYTHONHOME
-            this["HOME"] = ENV_PYTHONHOME
-            this["TMPDIR"] = TMPDIR
-        }
-
-        process = try {
-            processBuilder.start()
-        } catch (e: IOException) {
-            throw YoutubeDLException(e)
-        }
-        if (processId != null) {
-            idProcessMap[processId] = process
-        }
-        val outStream = process.inputStream
-        val errStream = process.errorStream
-        val stdOutProcessor = StreamProcessExtractor(outBuffer, outStream, callback)
-        val stdErrProcessor = StreamGobbler(errBuffer, errStream)
-        exitCode = try {
-            stdOutProcessor.join()
-            stdErrProcessor.join()
-            process.waitFor()
-        } catch (e: InterruptedException) {
-            process.destroy()
-            if (processId != null) idProcessMap.remove(processId)
-            throw e
-        }
-        val out = outBuffer.toString()
-        val err = errBuffer.toString()
-        if (exitCode > 0) {
-            if (processId != null && !idProcessMap.containsKey(processId))
-                throw CanceledException()
-            if (!ignoreErrors(request, out)) {
-                idProcessMap.remove(processId)
-                throw YoutubeDLException(err)
+        return withContext(Dispatchers.IO){
+            assertInit()
+            if (processId != null && idProcessMap.containsKey(processId)) throw YoutubeDLException("Process ID already exists")
+            // disable caching unless explicitly requested
+            if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
+                request.addOption("--no-cache-dir")
             }
-        }
-        idProcessMap.remove(processId)
 
-        val elapsedTime = System.currentTimeMillis() - startTime
-        youtubeDLResponse = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-        return youtubeDLResponse
+            if (request.buildCommand().contains("libaria2c.so")) {
+                request
+                    .addOption("--external-downloader-args", "aria2c:--summary-interval=1")
+                    .addOption(
+                        "--external-downloader-args",
+                        "aria2c:--ca-certificate=$ENV_SSL_CERT_FILE"
+                    )
+            }
+
+            /* Set ffmpeg location, See https://github.com/xibr/ytdlp-lazy/issues/1 */
+            request.addOption("--ffmpeg-location", ffmpegPath!!.absolutePath)
+            val youtubeDLResponse: YoutubeDLResponse
+            val process: Process
+            val exitCode: Int
+            val outBuffer = StringBuffer() //stdout
+            val errBuffer = StringBuffer() //stderr
+            val startTime = System.currentTimeMillis()
+            val args = request.buildCommand()
+            val command: MutableList<String?> = ArrayList()
+            command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
+            command.addAll(args)
+            Timber.i("Mycommand: ${command}")
+            val processBuilder = ProcessBuilder(command)
+            processBuilder.environment().apply {
+                this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
+                this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
+                this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
+                this["PYTHONHOME"] = ENV_PYTHONHOME
+                this["HOME"] = ENV_PYTHONHOME
+                this["TMPDIR"] = TMPDIR
+            }
+
+            process = try {
+                processBuilder.start()
+            } catch (e: IOException) {
+                throw YoutubeDLException(e)
+            }
+            if (processId != null) {
+                idProcessMap[processId] = process
+            }
+            val outStream = process.inputStream
+            val errStream = process.errorStream
+            val stdOutProcessor = StreamProcessExtractor(outBuffer, outStream, callback)
+            val stdErrProcessor = StreamGobbler(errBuffer, errStream)
+            exitCode = try {
+                stdOutProcessor.join()
+                stdErrProcessor.join()
+                process.waitFor()
+            } catch (e: InterruptedException) {
+                process.destroy()
+                if (processId != null) idProcessMap.remove(processId)
+                throw e
+            }
+            val out = outBuffer.toString()
+            val err = errBuffer.toString()
+            if (exitCode > 0) {
+                if (processId != null && !idProcessMap.containsKey(processId))
+                    throw CanceledException()
+                if (!ignoreErrors(request, out)) {
+                    idProcessMap.remove(processId)
+                    throw YoutubeDLException(err)
+                }
+            }
+            idProcessMap.remove(processId)
+
+            val elapsedTime = System.currentTimeMillis() - startTime
+            youtubeDLResponse = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
+            youtubeDLResponse
+        }
     }
 
     @Throws(YoutubeDLException::class)

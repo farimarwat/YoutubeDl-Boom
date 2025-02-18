@@ -19,10 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -39,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -46,6 +50,7 @@ import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
+import com.farimarwat.library.YoutubeDLRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -81,6 +86,8 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     var url by remember { mutableStateOf("") }
                     var showScanProgress by remember { mutableStateOf(false) }
+                    var downloadProgress by remember { mutableStateOf(0.0f) }
+                    var downloadEts by remember { mutableStateOf("") }
 
                     Box(
                         modifier = Modifier
@@ -147,6 +154,61 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            Spacer(modifier = Modifier.height(16.dp))
+                            if(videoInfo != null){
+                                Column {
+                                    Button(
+                                        onClick = {
+                                            scope.launch {
+                                                if(url.isNotEmpty()){
+                                                    youtubeDl?.let {
+                                                        val request = YoutubeDLRequest(url)
+                                                        request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
+                                                        if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
+                                                            it.execute(request){ progress, _,eta ->
+                                                                downloadProgress = progress
+                                                                downloadEts = eta
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)
+                                    ) {
+                                        Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = "Download", style = MaterialTheme.typography.titleMedium)
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    // Progress Bar
+                                    if (downloadProgress > 0) {
+                                        LinearProgressIndicator(
+                                            progress = { downloadProgress / 100f },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(8.dp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Text showing Estimated Time Remaining (ETS)
+                                        Text(
+                                            text = "Estimated time: $downloadEts",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
