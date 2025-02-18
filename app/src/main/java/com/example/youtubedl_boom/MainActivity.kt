@@ -19,6 +19,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.YoutubeDL
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
@@ -33,6 +36,7 @@ class MainActivity : ComponentActivity() {
                 val manager = YoutubeDlFileManager
                     .Builder()
                     .build()
+
                 val job = YoutubeDL.getInstance().init(
                     appContext = this@MainActivity,
                     fileManager = manager,
@@ -41,6 +45,18 @@ class MainActivity : ComponentActivity() {
                             url = "https://vimeo.com/22439234",
                             onSuccess = {
                                 videoInfo = it.toString()
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    YoutubeDL.updateYoutubeDL(
+                                        appContext = this@MainActivity,
+                                        updateChannel = YoutubeDL.UpdateChannel.STABLE,
+                                        onSuccess = {
+                                            Timber.i("${it}")
+                                        },
+                                        onError = {
+                                            Timber.i(it)
+                                        }
+                                    )
+                                }
                             },
                             onError = {
                                 videoInfo = it.toString()
@@ -49,7 +65,7 @@ class MainActivity : ComponentActivity() {
 
                     },
                     onError = {
-                        Timber.i(it)
+                        Timber.e(it)
                     }
                 )
             }

@@ -33,7 +33,6 @@ object YoutubeDL {
     private var TMPDIR: String = ""
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
-    @Throws(YoutubeDLException::class)
      fun init(appContext: Context,
               fileManager:YoutubeDlFileManager = YoutubeDlFileManager,
               onSuccess:suspend (YoutubeDL)->Unit={},
@@ -275,17 +274,22 @@ object YoutubeDL {
         return youtubeDLResponse
     }
 
-    @Synchronized
     @Throws(YoutubeDLException::class)
-    fun updateYoutubeDL(
+    suspend fun updateYoutubeDL(
         appContext: Context,
-        updateChannel: UpdateChannel = UpdateChannel.STABLE
-    ): UpdateStatus? {
-        assertInit()
-        return try {
-            YoutubeDLUpdater.update(appContext, updateChannel)
-        } catch (e: IOException) {
-            throw YoutubeDLException("failed to update youtube-dl", e)
+        updateChannel: UpdateChannel = UpdateChannel.STABLE,
+        onSuccess: (UpdateStatus) -> Unit={},
+        onError: (Throwable) -> Unit={}
+    ) {
+        withContext(Dispatchers.IO){
+            if(!YoutubeDlFileManager.isReady(appContext)) onError(YoutubeDLException("Upddate Error: Kindly initialize YoutubeDl first"))
+            assertInit()
+             try {
+                val status = YoutubeDLUpdater.update(appContext, updateChannel)
+                 onSuccess(status)
+            } catch (e: IOException) {
+               onError(e)
+            }
         }
     }
 
