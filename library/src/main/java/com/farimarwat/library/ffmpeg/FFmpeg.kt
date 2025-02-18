@@ -1,4 +1,4 @@
-package com.farimarwat.ffmpeg
+package com.farimarwat.library.ffmpeg
 
 import android.content.Context
 import com.farimarwat.library.YoutubeDLException

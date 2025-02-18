@@ -67,6 +67,7 @@ internal object YoutubeDLUpdater {
         } else json
     }
 
+
     private fun getTag(json: JsonNode): String {
         return json["tag_name"].asText()
     }
@@ -87,6 +88,11 @@ internal object YoutubeDLUpdater {
         }
         if (downloadUrl.isEmpty()) throw YoutubeDLException("unable to get download url")
         return downloadUrl
+    }
+
+    private fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
+        val url = URL(youtubeDLChannel.apiUrl)
+        return getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
     }
 
     @Throws(IOException::class)
