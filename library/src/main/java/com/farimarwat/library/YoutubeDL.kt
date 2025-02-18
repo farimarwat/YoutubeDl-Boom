@@ -6,6 +6,7 @@ import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.downloadmanager.NativeLibManager
 import com.farimarwat.common.utils.ZipUtils.unzip
+import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -34,20 +35,23 @@ object YoutubeDL {
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
     @Throws(YoutubeDLException::class)
-     fun init(appContext: Context, onSuccess:(YoutubeDL)->Unit={}, onError:(Throwable)->Unit={}):Job {
+     fun init(appContext: Context,
+              nativeLibManager:NativeLibManager = NativeLibManager,
+              onSuccess:(YoutubeDL)->Unit={},
+              onError:(Throwable)->Unit={}):Job {
          val exception = CoroutineExceptionHandler { _, throwable ->
              onError(throwable)
          }
          val job = Job()
          val scope = CoroutineScope(Dispatchers.IO+job+exception)
        return scope.launch {
-           if(NativeLibManager.isReady(appContext)){
+           if(nativeLibManager.isReady(appContext)){
                performInit(appContext)
                withContext(Dispatchers.Main){
                    onSuccess(this@YoutubeDL)
                }
            } else {
-               NativeLibManager.downloadLibFiles{ success, error ->
+               nativeLibManager.downloadLibFiles{ success, error ->
                    if(success){
                        performInit(appContext)
                        withContext(Dispatchers.Main){
@@ -87,7 +91,7 @@ object YoutubeDL {
         initialized = true
     }
     @Throws(YoutubeDLException::class)
-    fun init_ytdlp(appContext: Context, ytdlpDir: File) {
+    internal fun init_ytdlp(appContext: Context, ytdlpDir: File) {
         if (!ytdlpDir.exists()) ytdlpDir.mkdirs()
         val ytdlpBinary = File(ytdlpDir, ytdlpBin)
         if (!ytdlpBinary.exists()) {
@@ -102,7 +106,7 @@ object YoutubeDL {
     }
 
     @Throws(YoutubeDLException::class)
-    fun initPython(appContext: Context, pythonDir: File) {
+    internal fun initPython(appContext: Context, pythonDir: File) {
         val pythonLib = File(NativeLibManager.DOWNLOAD_DIR, pythonLibName)
         val pythonSize = pythonLib.length().toString()
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
@@ -170,9 +174,8 @@ object YoutubeDL {
 
     class CanceledException : Exception()
 
-    @JvmOverloads
     @Throws(YoutubeDLException::class, InterruptedException::class, CanceledException::class)
-    fun execute(
+    private fun execute(
         request: YoutubeDLRequest,
         processId: String? = null,
         callback: ((Float, Long, String) -> Unit)? = null
@@ -313,6 +316,7 @@ object YoutubeDL {
     private const val pythonLibVersion = "pythonLibVersion"
     val objectMapper = ObjectMapper()
 
-    @JvmStatic
     fun getInstance() = this
+
+
 }

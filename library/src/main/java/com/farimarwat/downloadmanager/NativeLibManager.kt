@@ -3,7 +3,9 @@ package com.farimarwat.downloadmanager
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
 import com.farimarwat.library.YoutubeDL
+import com.farimarwat.library.YoutubeDL.getInstance
 import com.farimarwat.library.YoutubeDLUpdater
 import kotlinx.coroutines.*
 import timber.log.Timber
@@ -14,13 +16,8 @@ import java.net.URL
 
 object NativeLibManager {
     private const val TAG = "NativeLibManager"
-
-
-
     private val baseUrls = mutableListOf(
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.zip.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so"
     )
     var DOWNLOAD_DIR:File? = null
     val arch:String
@@ -97,5 +94,20 @@ object NativeLibManager {
             }
         }
     }
-
+    private fun getInstance():NativeLibManager{
+        return this
+    }
+    class Builder{
+        fun withFFMpeg():Builder{
+            baseUrls.add(YoutubeDlArtifact.FFMPEG)
+            return this
+        }
+        fun withAria2c():Builder{
+            baseUrls.add(YoutubeDlArtifact.ARIA2C)
+            return this
+        }
+        fun build():NativeLibManager{
+            return getInstance()
+        }
+    }
 }

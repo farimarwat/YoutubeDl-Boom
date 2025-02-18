@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
+import com.farimarwat.downloadmanager.NativeLibManager
 import com.farimarwat.library.YoutubeDL
 import timber.log.Timber
 
@@ -29,8 +30,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             var videoInfo by remember { mutableStateOf("") }
             LaunchedEffect(Unit) {
+                val manager = NativeLibManager.Builder()
+                    .withFFMpeg()
+                    .withAria2c()
+                    .build()
                 val job = YoutubeDL.getInstance().init(
                     appContext = this@MainActivity,
+                    nativeLibManager = manager,
                     onSuccess = {
                         val info = it.getInfo("https://vimeo.com/22439234")
                         videoInfo = info.toString()
