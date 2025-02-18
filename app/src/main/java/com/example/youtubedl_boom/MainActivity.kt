@@ -32,14 +32,21 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 val manager = NativeLibManager.Builder()
                     .withFFMpeg()
-                    .withAria2c()
                     .build()
                 val job = YoutubeDL.getInstance().init(
                     appContext = this@MainActivity,
                     nativeLibManager = manager,
                     onSuccess = {
-                        val info = it.getInfo("https://vimeo.com/22439234")
-                        videoInfo = info.toString()
+                        it.getInfo(
+                            url = "https://vimeo.com/22439234",
+                            onSuccess = {
+                                videoInfo = it.toString()
+                            },
+                            onError = {
+                                videoInfo = it.toString()
+                            }
+                        )
+
                     },
                     onError = {
                         Timber.i(it)

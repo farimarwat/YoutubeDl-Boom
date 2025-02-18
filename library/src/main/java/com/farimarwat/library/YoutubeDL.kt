@@ -37,7 +37,7 @@ object YoutubeDL {
     @Throws(YoutubeDLException::class)
      fun init(appContext: Context,
               nativeLibManager:NativeLibManager = NativeLibManager,
-              onSuccess:(YoutubeDL)->Unit={},
+              onSuccess:suspend (YoutubeDL)->Unit={},
               onError:(Throwable)->Unit={}):Job {
          val exception = CoroutineExceptionHandler { _, throwable ->
              onError(throwable)
@@ -134,22 +134,41 @@ object YoutubeDL {
         check(initialized) { "instance not initialized" }
     }
 
-    @Throws(YoutubeDLException::class, InterruptedException::class, CanceledException::class)
-    fun getInfo(url: String): VideoInfo {
+    suspend fun getInfo(
+        url: String,
+        onSuccess: (VideoInfo) -> Unit = {},
+        onError: (Throwable) -> Unit = {}){
         val request = YoutubeDLRequest(url)
-        return getInfo(request)
+         getInfo(
+            request = request,
+            onSuccess = onSuccess,
+            onError = onError
+        )
     }
 
-    @Throws(YoutubeDLException::class, InterruptedException::class, CanceledException::class)
-    fun getInfo(request: YoutubeDLRequest): VideoInfo {
-        request.addOption("--dump-json")
-        val response = execute(request, null, null)
-        val videoInfo: VideoInfo = try {
-            objectMapper.readValue(response.out, VideoInfo::class.java)
-        } catch (e: IOException) {
-            throw YoutubeDLException("Unable to parse video information", e)
-        } ?: throw YoutubeDLException("Failed to fetch video information")
-        return videoInfo
+    suspend fun getInfo(
+        request: YoutubeDLRequest,
+        onSuccess: (VideoInfo) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ) {
+        try {
+            request.addOption("--dump-json")
+            val response = withContext(Dispatchers.IO) {
+                execute(request, null, null)
+            }
+            val videoInfo = response.out.let { jsonOutput ->
+                try {
+                    objectMapper.readValue(jsonOutput, VideoInfo::class.java)
+                        ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
+                } catch (e: IOException) {
+                    throw YoutubeDLException("Unable to parse video information", e)
+                }
+            }
+            onSuccess(videoInfo)
+        } catch (e: Throwable) {
+            Timber.e(e, "Failed to fetch video information")
+            onError(e)
+        }
     }
 
     private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
