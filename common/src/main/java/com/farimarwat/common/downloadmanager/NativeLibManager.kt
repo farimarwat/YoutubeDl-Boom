@@ -1,6 +1,7 @@
 package com.yausername.youtubedl_common.downloadmanager
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
 import timber.log.Timber
@@ -11,23 +12,23 @@ import java.net.URL
 
 object NativeLibManager {
     private const val TAG = "NativeLibManager"
-    private val supportedArchitectures = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+
     private val baseUrls = listOf(
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/arm64-v8a/libpython.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/arm64-v8a/libffmpeg.zip.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.zip.so",
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.zip.so",
     )
     var DOWNLOAD_DIR:File? = null
+    val arch:String
+        get() =  Build.SUPPORTED_ABIS[0]
 
     // Check if all necessary files exist in the libs directory
     fun isReady(context: Context): Boolean {
         DOWNLOAD_DIR = context.filesDir
-        return supportedArchitectures.all { arch ->
-            baseUrls.all { url ->
-                val fileUrl = url.replace("{arch}", arch)
-                val fileName = fileUrl.substringAfterLast('/')
-                File(DOWNLOAD_DIR, fileName).exists()
-            }
+        return baseUrls.all { url ->
+            val fileUrl = url.replace("{arch}", arch)
+            val fileName = fileUrl.substringAfterLast('/')
+            File(DOWNLOAD_DIR, fileName).exists()
         }
     }
 
@@ -41,26 +42,20 @@ object NativeLibManager {
         scope.launch {
             var downloadError: Exception? = null
             var downloadFailed = false
-
-            for (arch in supportedArchitectures) {
-                for (url in baseUrls) {
-                    val fileUrl = url.replace("{arch}", arch)
-                    val fileName = fileUrl.substringAfterLast('/')
-                    val file = File(DOWNLOAD_DIR, fileName)
-
-                    if (!file.exists()) {
-                        Timber.i("Downloading $fileName for architecture $arch...")
-                        val success = downloadFile(fileUrl, file)
-                        if (!success) {
-                            downloadFailed = true
-                            downloadError = Exception("Download failed for $fileName")
-                            break
-                        }
+            for (url in baseUrls) {
+                val fileUrl = url.replace("{arch}", arch)
+                val fileName = fileUrl.substringAfterLast('/')
+                val file = File(DOWNLOAD_DIR, fileName)
+                Timber.i("Download ${fileName} for $arch")
+                if (!file.exists()) {
+                    val success = downloadFile(fileUrl, file)
+                    if (!success) {
+                        downloadFailed = true
+                        downloadError = Exception("Download failed for $fileName")
+                        break
                     }
                 }
-                if (downloadFailed) break
             }
-
             withContext(Dispatchers.Main) {
                 callback(!downloadFailed, downloadError)
             }
@@ -89,14 +84,6 @@ object NativeLibManager {
                     outputStream.flush()
                     outputStream.close()
                     inputStream.close()
-                    Timber.i("DownloadResponse: ${connection.responseCode}")
-
-                    // Set chmod +x if the file is libpython.so
-                    if (destinationFile.name == "libpython.so") {
-                        destinationFile.setExecutable(true, false)
-                        Timber.i("Set executable permission for ${destinationFile.name}")
-                    }
-
                     true
                 } else {
                     Timber.i("Failed to download $fileUrl. Response code: ${connection.responseCode}")
@@ -108,4 +95,5 @@ object NativeLibManager {
             }
         }
     }
+
 }
