@@ -66,4 +66,7 @@ dependencies {
     implementation(project(":library"))
     //implementation("io.github.farimarwat:youtubedl-boom:1.0")
     implementation(libs.timber)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
 }
