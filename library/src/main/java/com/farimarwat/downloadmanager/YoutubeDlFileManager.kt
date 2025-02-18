@@ -2,10 +2,8 @@ package com.farimarwat.downloadmanager
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
 import com.farimarwat.library.YoutubeDL
-import com.farimarwat.library.YoutubeDL.getInstance
 import com.farimarwat.library.YoutubeDLUpdater
 import kotlinx.coroutines.*
 import timber.log.Timber
@@ -14,7 +12,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-object NativeLibManager {
+object YoutubeDlFileManager {
     private const val TAG = "NativeLibManager"
     private val baseUrls = mutableListOf(
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so"
@@ -94,7 +92,7 @@ object NativeLibManager {
             }
         }
     }
-    private fun getInstance():NativeLibManager{
+    private fun getInstance():YoutubeDlFileManager{
         return this
     }
     class Builder{
@@ -106,7 +104,7 @@ object NativeLibManager {
             baseUrls.add(YoutubeDlArtifact.ARIA2C)
             return this
         }
-        fun build():NativeLibManager{
+        fun build():YoutubeDlFileManager{
             return getInstance()
         }
     }

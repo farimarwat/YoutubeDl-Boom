@@ -4,9 +4,8 @@ import android.content.Context
 import android.os.Build
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
-import com.farimarwat.downloadmanager.NativeLibManager
+import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.common.utils.ZipUtils.unzip
-import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +35,7 @@ object YoutubeDL {
 
     @Throws(YoutubeDLException::class)
      fun init(appContext: Context,
-              nativeLibManager:NativeLibManager = NativeLibManager,
+              fileManager:YoutubeDlFileManager = YoutubeDlFileManager,
               onSuccess:suspend (YoutubeDL)->Unit={},
               onError:(Throwable)->Unit={}):Job {
          val exception = CoroutineExceptionHandler { _, throwable ->
@@ -45,13 +44,13 @@ object YoutubeDL {
          val job = Job()
          val scope = CoroutineScope(Dispatchers.IO+job+exception)
        return scope.launch {
-           if(nativeLibManager.isReady(appContext)){
+           if(fileManager.isReady(appContext)){
                performInit(appContext)
                withContext(Dispatchers.Main){
                    onSuccess(this@YoutubeDL)
                }
            } else {
-               nativeLibManager.downloadLibFiles{ success, error ->
+               fileManager.downloadLibFiles{ success, error ->
                    if(success){
                        performInit(appContext)
                        withContext(Dispatchers.Main){
@@ -96,7 +95,7 @@ object YoutubeDL {
         val ytdlpBinary = File(ytdlpDir, ytdlpBin)
         if (!ytdlpBinary.exists()) {
             try {
-                val inputStream = File(NativeLibManager.DOWNLOAD_DIR, ytdlpBin).inputStream()
+                val inputStream = File(YoutubeDlFileManager.DOWNLOAD_DIR, ytdlpBin).inputStream()
                 FileUtils.copyInputStreamToFile(inputStream, ytdlpBinary)
             } catch (e: Exception) {
                 FileUtils.deleteQuietly(ytdlpDir)
@@ -107,7 +106,7 @@ object YoutubeDL {
 
     @Throws(YoutubeDLException::class)
     internal fun initPython(appContext: Context, pythonDir: File) {
-        val pythonLib = File(NativeLibManager.DOWNLOAD_DIR, pythonLibName)
+        val pythonLib = File(YoutubeDlFileManager.DOWNLOAD_DIR, pythonLibName)
         val pythonSize = pythonLib.length().toString()
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
             FileUtils.deleteQuietly(pythonDir)
