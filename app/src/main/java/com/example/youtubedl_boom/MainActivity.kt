@@ -20,10 +20,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        val job = YoutubeDL.getInstance().init(this){ success, error ->
-            val info = YoutubeDL.getInfo("https://vimeo.com/22439234")
-            Timber.i("Info: ${info.title}")
-        }
+        val job = YoutubeDL.getInstance().init(
+            appContext = this,
+            onSuccess = {
+                val info = it.getInfo("https://vimeo.com/22439234")
+                Timber.i("Info: ${info.title}")
+            },
+            onError = {
+                Timber.i(it)
+            }
+        )
 
         enableEdgeToEdge()
         setContent {

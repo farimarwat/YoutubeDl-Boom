@@ -7,6 +7,7 @@ import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.downloadmanager.NativeLibManager
 import com.farimarwat.common.utils.ZipUtils.unzip
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,25 +34,28 @@ object YoutubeDL {
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
     @Throws(YoutubeDLException::class)
-     fun init(appContext: Context, isInitialized:(Boolean,error:Exception?)->Unit={_, _ ->}):Job {
+     fun init(appContext: Context, onSuccess:(YoutubeDL)->Unit={}, onError:(Throwable)->Unit={}):Job {
+         val exception = CoroutineExceptionHandler { _, throwable ->
+             onError(throwable)
+         }
          val job = Job()
-         val scope = CoroutineScope(Dispatchers.IO+job)
+         val scope = CoroutineScope(Dispatchers.IO+job+exception)
        return scope.launch {
            if(NativeLibManager.isReady(appContext)){
                performInit(appContext)
                withContext(Dispatchers.Main){
-                   isInitialized(true,null)
+                   onSuccess(this@YoutubeDL)
                }
            } else {
                NativeLibManager.downloadLibFiles{ success, error ->
                    if(success){
                        performInit(appContext)
                        withContext(Dispatchers.Main){
-                           isInitialized(true,null)
+                           onSuccess(this@YoutubeDL)
                        }
                    } else {
                        withContext(Dispatchers.Main){
-                           isInitialized(true,null)
+                           onSuccess(this@YoutubeDL)
                        }
                    }
                }
