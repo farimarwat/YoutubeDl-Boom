@@ -1,9 +1,9 @@
 package com.farimarwat.aria2c
 
 import android.content.Context
+import com.farimarwat.common.SharedPrefsHelper
+import com.farimarwat.common.utils.ZipUtils
 import com.farimarwat.library.YoutubeDLException
-import com.yausername.youtubedl_common.SharedPrefsHelper
-import com.yausername.youtubedl_common.utils.ZipUtils
 import org.apache.commons.io.FileUtils
 import java.io.File
 

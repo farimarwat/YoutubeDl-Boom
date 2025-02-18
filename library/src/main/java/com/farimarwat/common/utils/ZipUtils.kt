@@ -1,4 +1,4 @@
-package com.yausername.youtubedl_common.utils
+package com.farimarwat.common.utils
 
 import android.system.Os
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry

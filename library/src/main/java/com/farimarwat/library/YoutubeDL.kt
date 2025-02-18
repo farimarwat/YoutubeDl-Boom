@@ -2,12 +2,12 @@ package com.farimarwat.library
 
 import android.content.Context
 import android.os.Build
+import com.farimarwat.common.SharedPrefsHelper
+import com.farimarwat.common.SharedPrefsHelper.update
+import com.farimarwat.common.downloadmanager.NativeLibManager
+import com.farimarwat.common.utils.ZipUtils.unzip
 import com.fasterxml.jackson.databind.ObjectMapper
 
-import com.yausername.youtubedl_common.SharedPrefsHelper
-import com.yausername.youtubedl_common.SharedPrefsHelper.update
-import com.yausername.youtubedl_common.downloadmanager.NativeLibManager
-import com.yausername.youtubedl_common.utils.ZipUtils.unzip
 import org.apache.commons.io.FileUtils
 import timber.log.Timber
 import java.io.File
