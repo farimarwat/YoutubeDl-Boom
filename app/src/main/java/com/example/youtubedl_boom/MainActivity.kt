@@ -45,18 +45,6 @@ class MainActivity : ComponentActivity() {
                             url = "https://vimeo.com/22439234",
                             onSuccess = {
                                 videoInfo = it.toString()
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    YoutubeDL.updateYoutubeDL(
-                                        appContext = this@MainActivity,
-                                        updateChannel = YoutubeDL.UpdateChannel.STABLE,
-                                        onSuccess = {
-                                            Timber.i("${it}")
-                                        },
-                                        onError = {
-                                            Timber.i(it)
-                                        }
-                                    )
-                                }
                             },
                             onError = {
                                 videoInfo = it.toString()

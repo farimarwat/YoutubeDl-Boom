@@ -7,6 +7,7 @@ import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.common.utils.ZipUtils.unzip
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.yausername.youtubedl_android.ProcessUtils
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -176,6 +177,7 @@ object YoutubeDL {
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
             val p = idProcessMap[id]
+            p?.let{ProcessUtils.killChildProcess(p)}
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 alive = p!!.isAlive
