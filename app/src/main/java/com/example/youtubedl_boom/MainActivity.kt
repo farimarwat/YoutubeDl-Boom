@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 val manager = YoutubeDlFileManager
                     .Builder()
+                    .withFFMpeg()
                     .build()
 
                 val job = YoutubeDL.getInstance().init(

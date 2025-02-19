@@ -2,10 +2,12 @@ package com.farimarwat.library
 
 import android.content.Context
 import android.os.Build
+import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.common.utils.ZipUtils.unzip
+import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.yausername.youtubedl_android.FFMPEGProcessExtractor
 import com.yausername.youtubedl_android.ProcessUtils
@@ -47,6 +49,12 @@ object YoutubeDL {
        return scope.launch {
            if(fileManager.isReady(appContext)){
                performInit(appContext)
+               if(fileManager.mWithFfmpeg){
+                   FFmpeg.init(appContext)
+               }
+               if(fileManager.mWithAria2c){
+                   Aria2c.init(appContext)
+               }
                withContext(Dispatchers.Main){
                    onSuccess(this@YoutubeDL)
                }
