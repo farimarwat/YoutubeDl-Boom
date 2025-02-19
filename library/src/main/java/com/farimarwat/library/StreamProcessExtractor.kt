@@ -1,6 +1,7 @@
 package com.farimarwat.library
 
 import android.util.Log
+import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -38,8 +39,8 @@ internal class StreamProcessExtractor(
                 }
                 currentLine.append(nextChar.toChar())
             }
-        } catch (e: IOException) {
-            if (BuildConfig.DEBUG) Log.e(TAG, "failed to read stream", e)
+        } catch (e: Exception) {
+            Timber.i("failed to read stream", e)
         }
     }
 
