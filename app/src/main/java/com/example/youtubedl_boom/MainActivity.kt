@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,13 +23,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,8 +48,6 @@ import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLRequest
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -87,7 +82,7 @@ class MainActivity : ComponentActivity() {
                     var url by remember { mutableStateOf("") }
                     var showScanProgress by remember { mutableStateOf(false) }
                     var downloadProgress by remember { mutableStateOf(0.0f) }
-                    var downloadEts by remember { mutableStateOf("") }
+                    var downloadLine by remember { mutableStateOf("") }
 
                     Box(
                         modifier = Modifier
@@ -165,10 +160,21 @@ class MainActivity : ComponentActivity() {
                                                         val request = YoutubeDLRequest(url)
                                                         request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
                                                         if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                            it.execute(request){ progress, _,eta ->
-                                                                downloadProgress = progress
-                                                                downloadEts = eta
-                                                            }
+                                                            it.execute(
+                                                                request = request,
+                                                                progressCallBack = { progress, eta,line ->
+                                                                    downloadProgress = progress
+                                                                    downloadLine = line
+
+                                                                    Timber.i("line: $line")
+                                                                },
+                                                                ffmpegProgressCallback = { size, line ->
+                                                                    Timber.i("Size:$size Line:$line")
+                                                                },
+                                                                onError = {
+                                                                    Timber.e(it)
+                                                                }
+                                                            )
                                                         }
                                                     }
                                                 }
@@ -202,7 +208,7 @@ class MainActivity : ComponentActivity() {
 
                                         // Text showing Estimated Time Remaining (ETS)
                                         Text(
-                                            text = "Estimated time: $downloadEts",
+                                            text = "Estimated time: $downloadLine",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
