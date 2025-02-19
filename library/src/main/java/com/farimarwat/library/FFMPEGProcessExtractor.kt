@@ -40,6 +40,9 @@ object FFMPEGProcessExtractor{
 
                 while (shouldContinue) {
                     mFfmpegPid = ProcessUtils.getFFMPEGProcessId(pythonPID)
+                    if(mFfmpegPid < 0){
+                        shouldContinue = false
+                    }
                     val progressFilePath = "/proc/$mFfmpegPid/fd/2"
                     val progressfile = File(progressFilePath)
 

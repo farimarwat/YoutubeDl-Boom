@@ -23,6 +23,7 @@ import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
+import java.util.UUID
 import kotlin.collections.set
 
 object YoutubeDL {
@@ -186,6 +187,7 @@ object YoutubeDL {
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
             val p = idProcessMap[id]
+            Timber.i("Process exists: $p")
             p?.let{ProcessUtils.killChildProcess(p)}
             FFMPEGProcessExtractor
                 .stop(id)
@@ -206,16 +208,19 @@ object YoutubeDL {
 
     suspend fun execute(
         request: YoutubeDLRequest,
-        processId: String? = null,
+        pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
         ffmpegProgressCallback: ((size: Int?, line: String?) -> Unit)? = null,
         onError: (Exception) -> Unit = {}
     ): YoutubeDLResponse? {
         return withContext(Dispatchers.IO) {
             try {
+                val processId= pId ?: UUID.randomUUID().toString()
                 assertInit()
-                if (processId != null && idProcessMap.containsKey(processId))
-                    throw YoutubeDLException("Process ID already exists")
+                if (idProcessMap.containsKey(processId)){
+                    onError(YoutubeDLException("Process ID already exists"))
+                    return@withContext null
+                }
 
                 if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
                     request.addOption("--no-cache-dir")
@@ -249,11 +254,11 @@ object YoutubeDL {
 
                 val process: Process = processBuilder.start()
 
-                if (processId != null) {
-                    idProcessMap[processId] = process
+                idProcessMap[processId] = process
+                Timber.i("ProcessId: ${processId}")
+                if(ffmpegProgressCallback != null){
                     FFMPEGProcessExtractor.start(processId, process, ffmpegProgressCallback)
                 }
-
                 val stdOutProcessor = StreamProcessExtractor(outBuffer, process.inputStream, progressCallBack)
                 val stdErrProcessor = StreamGobbler(errBuffer, process.errorStream)
 
@@ -263,7 +268,7 @@ object YoutubeDL {
                     process.waitFor()
                 } catch (e: InterruptedException) {
                     process.destroy()
-                    if (processId != null) idProcessMap.remove(processId)
+                    idProcessMap.remove(processId)
                     onError(e)
                      -1
                 }
@@ -272,24 +277,25 @@ object YoutubeDL {
                 val err = errBuffer.toString()
 
                 if (exitCode > 0) {
-                    if (processId != null && !idProcessMap.containsKey(processId)) {
+                    if (!idProcessMap.containsKey(processId)) {
                         val canceledException = CanceledException()
                         onError(canceledException)
+                        return@withContext null
                     }
                     if (!ignoreErrors(request, out)) {
                         idProcessMap.remove(processId)
                         val youtubeDLException = YoutubeDLException(err)
                         onError(youtubeDLException)
+                        return@withContext null
                     }
                 }
-
                 idProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
-                YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-
+                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err, processId)
+                response
             } catch (e: Exception) {
                 onError(e)
-                null // Prevents throwing the exception
+                null
             }
         }
     }

@@ -48,8 +48,11 @@ import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLRequest
+import com.farimarwat.library.YoutubeDLResponse
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.UUID
+import kotlin.uuid.Uuid
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +62,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
+            var youtubeDLResponse:YoutubeDLResponse? = null
+            val processId = "MyUniqueProcess"
             val scope = rememberCoroutineScope()
             LaunchedEffect(Unit) {
                 val manager = YoutubeDlFileManager
@@ -161,8 +166,9 @@ class MainActivity : ComponentActivity() {
                                                         val request = YoutubeDLRequest(url)
                                                         request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
                                                         if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                            it.execute(
+                                                           youtubeDLResponse = it.execute(
                                                                 request = request,
+                                                                pId = processId,
                                                                 progressCallBack = { progress, eta,line ->
                                                                     downloadProgress = progress
                                                                     downloadLine = line
@@ -173,7 +179,7 @@ class MainActivity : ComponentActivity() {
                                                                     Timber.i("Size:$size Line:$line")
                                                                 },
                                                                 onError = {
-                                                                    Timber.e(it)
+                                                                    Timber.e("OnExecute: $it")
                                                                 }
                                                             )
                                                         }
@@ -192,6 +198,22 @@ class MainActivity : ComponentActivity() {
                                         Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(text = "Download", style = MaterialTheme.typography.titleMedium)
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = {
+                                            Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
+                                            youtubeDl?.destroyProcessById(
+                                                processId
+                                            )
+                                    },shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)){
+                                        Text("Cancel")
                                     }
                                     Spacer(modifier = Modifier.height(16.dp))
                                     // Progress Bar
