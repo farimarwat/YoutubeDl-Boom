@@ -233,19 +233,23 @@ object YoutubeDL {
 
     class CanceledException : Exception()
 
-    suspend fun execute(
+     fun execute(
         request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
-        onError: (Exception) -> Unit = {}
-    ): YoutubeDLResponse? {
-        return withContext(Dispatchers.IO) {
+        onStartProcess:(String)->Unit={},
+        onEndProcess:(YoutubeDLResponse)->Unit={},
+        onError: (Throwable) -> Unit = {}
+    ): Job {
+        val exception = CoroutineExceptionHandler { _, throwable ->
+            onError(throwable)
+        }
+        return CoroutineScope(Dispatchers.IO + exception).launch {
             try {
-                val processId= pId ?: UUID.randomUUID().toString()
+                val processId = if(pId.isNullOrEmpty()) UUID.randomUUID().toString() else pId
                 assertInit()
                 if (idProcessMap.containsKey(processId)){
-                    onError(YoutubeDLException("Process ID already exists"))
-                    return@withContext null
+                   throw  YoutubeDLException("Process ID already exists")
                 }
 
                 if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
@@ -279,7 +283,7 @@ object YoutubeDL {
                 }
 
                 val process: Process = processBuilder.start()
-
+                onStartProcess(processId)
                 idProcessMap[processId] = process
                 val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, progressCallBack)
                 val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
@@ -291,8 +295,7 @@ object YoutubeDL {
                 } catch (e: InterruptedException) {
                     process.destroy()
                     idProcessMap.remove(processId)
-                    onError(e)
-                     -1
+                    throw  e
                 }
 
                 val out = outBuffer.toString()
@@ -301,23 +304,20 @@ object YoutubeDL {
                 if (exitCode > 0) {
                     if (!idProcessMap.containsKey(processId)) {
                         val canceledException = CanceledException()
-                        onError(canceledException)
-                        return@withContext null
+                        throw canceledException
                     }
                     if (!ignoreErrors(request, out)) {
                         idProcessMap.remove(processId)
                         val youtubeDLException = YoutubeDLException(err)
-                        onError(youtubeDLException)
-                        return@withContext null
+                        throw youtubeDLException
                     }
                 }
                 idProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-                response
+                onEndProcess(response)
             } catch (e: Exception) {
-                onError(e)
-                null
+                throw e
             }
         }
     }

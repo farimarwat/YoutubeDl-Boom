@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
             var youtubeDLResponse:YoutubeDLResponse? = null
-            val processId = "MyUniqueProcess"
+            var processId = ""
             val scope = rememberCoroutineScope()
             LaunchedEffect(Unit) {
                 val manager = YoutubeDlFileManager
@@ -167,17 +167,23 @@ class MainActivity : ComponentActivity() {
                                                         request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
                                                         //request.addOption("--downloader","ffmpeg")
                                                         if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                           youtubeDLResponse = it.execute(
+                                                           it.execute(
                                                                 request = request,
                                                                 pId = processId,
                                                                 progressCallBack = { progress, eta,line ->
                                                                     downloadProgress = progress
                                                                     downloadLine = line
-
                                                                     Timber.i("line: $line")
                                                                 },
-                                                                onError = {
-                                                                    Timber.e("OnExecute: $it")
+                                                               onStartProcess = { id ->
+                                                                   processId = id
+                                                                   Timber.i("ProcessId: ${id}")
+                                                               },
+                                                               onEndProcess = { response ->
+                                                                   Timber.i("YoutubeDlResponse: $response")
+                                                               },
+                                                                onError = { error ->
+                                                                    Timber.e("OnExecute: $error")
                                                                 }
                                                             )
                                                         }
