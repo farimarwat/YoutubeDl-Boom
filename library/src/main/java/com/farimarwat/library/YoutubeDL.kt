@@ -158,7 +158,6 @@ object YoutubeDL {
                 assertInit()
                 val outBuffer = StringBuffer() // stdout
                 val errBuffer = StringBuffer() // stderr
-                val startTime = System.currentTimeMillis()
                 val args = request.buildCommand()
                 val command: MutableList<String?> = ArrayList()
                 command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
@@ -175,11 +174,10 @@ object YoutubeDL {
                 }
 
                 val process: Process = processBuilder.start()
+                val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, null)
+                val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
 
-                val stdOutProcessor = StreamProcessExtractor(outBuffer, process.inputStream, null)
-                val stdErrProcessor = StreamGobbler(errBuffer, process.errorStream)
-
-                val exitCode: Int = try {
+                try {
                     stdOutProcessor.join()
                     stdErrProcessor.join()
                     process.waitFor()
@@ -189,11 +187,7 @@ object YoutubeDL {
                 }
 
                 val out = outBuffer.toString()
-                val err = errBuffer.toString()
-
-                val elapsedTime = System.currentTimeMillis() - startTime
-                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-                val videoInfo = response.out.let { jsonOutput ->
+                val videoInfo = out.let { jsonOutput ->
                     try {
                         objectMapper.readValue(jsonOutput, VideoInfo::class.java)
                             ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
@@ -287,8 +281,8 @@ object YoutubeDL {
                 val process: Process = processBuilder.start()
 
                 idProcessMap[processId] = process
-                val stdOutProcessor = StreamProcessExtractor(outBuffer, process.inputStream, progressCallBack)
-                val stdErrProcessor = StreamGobbler(errBuffer, process.errorStream)
+                val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, progressCallBack)
+                val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
 
                 val exitCode: Int = try {
                     stdOutProcessor.join()

@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
                                                     youtubeDl?.let {
                                                         val request = YoutubeDLRequest(url)
                                                         request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
-                                                        request.addOption("--downloader","ffmpeg")
+                                                        //request.addOption("--downloader","ffmpeg")
                                                         if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
                                                            youtubeDLResponse = it.execute(
                                                                 request = request,
