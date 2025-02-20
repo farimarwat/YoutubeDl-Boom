@@ -9,7 +9,7 @@ import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.common.utils.ZipUtils.unzip
 import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.yausername.youtubedl_android.FFMPEGProcessExtractor
+import com.farimarwat.ffmpeg.FfmpegStreamExtractor
 import com.yausername.youtubedl_android.ProcessUtils
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -210,7 +210,7 @@ object YoutubeDL {
         try {
             request.addOption("--dump-json")
             val response = withContext(Dispatchers.IO) {
-                execute(request, null)
+                download(request, null)
             }
             val videoInfo = response?.out.let { jsonOutput ->
                 try {
@@ -233,7 +233,7 @@ object YoutubeDL {
 
     class CanceledException : Exception()
 
-     fun execute(
+     fun download(
         request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
@@ -282,15 +282,27 @@ object YoutubeDL {
                     }
                 }
 
+
                 val process: Process = processBuilder.start()
                 onStartProcess(processId)
                 idProcessMap[processId] = process
                 val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, progressCallBack)
                 val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
+                val stdOutFfmpeg = if(request.hasOption("--downloader")){
+                    val downloader = request.getOption("--downloader").toString()
+                     if(downloader == "ffmpeg"){
+                        FfmpegStreamExtractor.readStream(process,progressCallBack)
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
 
                 val exitCode: Int = try {
                     stdOutProcessor.join()
                     stdErrProcessor.join()
+                    stdOutFfmpeg?.join()
                     process.waitFor()
                 } catch (e: InterruptedException) {
                     process.destroy()
@@ -325,10 +337,11 @@ object YoutubeDL {
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
             val p = idProcessMap[id]
-            Timber.i("Process exists: $p")
             p?.let{ProcessUtils.killChildProcess(p)}
-            FFMPEGProcessExtractor
-                .stop(id)
+            if (p != null && FfmpegStreamExtractor.hasFfmpegProcess(p)) {
+                FfmpegStreamExtractor
+                    .stopNow(p)
+            }
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 alive = p!!.isAlive

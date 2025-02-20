@@ -51,8 +51,6 @@ import com.farimarwat.library.YoutubeDLRequest
 import com.farimarwat.library.YoutubeDLResponse
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.UUID
-import kotlin.uuid.Uuid
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -165,9 +163,9 @@ class MainActivity : ComponentActivity() {
                                                     youtubeDl?.let {
                                                         val request = YoutubeDLRequest(url)
                                                         request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
-                                                        //request.addOption("--downloader","ffmpeg")
+                                                        request.addOption("--downloader","ffmpeg")
                                                         if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                           it.execute(
+                                                           it.download(
                                                                 request = request,
                                                                 pId = processId,
                                                                 progressCallBack = { progress, eta,line ->
