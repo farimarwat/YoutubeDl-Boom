@@ -143,19 +143,72 @@ object YoutubeDL {
         check(initialized) { "instance not initialized" }
     }
 
-    suspend fun getInfo(
+     fun getInfo(
         url: String,
         onSuccess: (VideoInfo) -> Unit = {},
-        onError: (Throwable) -> Unit = {}){
-        val request = YoutubeDLRequest(url)
-         getInfo(
-            request = request,
-            onSuccess = onSuccess,
-            onError = onError
-        )
+        onError: (Throwable) -> Unit = {})
+    {
+         val exception = CoroutineExceptionHandler { _, throwable ->
+             onError(throwable)
+         }
+        CoroutineScope(Dispatchers.IO + exception).launch {
+            val request = YoutubeDLRequest(url)
+            request.addOption("--dump-json")
+            try {
+                assertInit()
+                val outBuffer = StringBuffer() // stdout
+                val errBuffer = StringBuffer() // stderr
+                val startTime = System.currentTimeMillis()
+                val args = request.buildCommand()
+                val command: MutableList<String?> = ArrayList()
+                command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
+                command.addAll(args)
+                val processBuilder = ProcessBuilder(command).apply {
+                    environment().apply {
+                        this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
+                        this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
+                        this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
+                        this["PYTHONHOME"] = ENV_PYTHONHOME
+                        this["HOME"] = ENV_PYTHONHOME
+                        this["TMPDIR"] = TMPDIR
+                    }
+                }
+
+                val process: Process = processBuilder.start()
+
+                val stdOutProcessor = StreamProcessExtractor(outBuffer, process.inputStream, null)
+                val stdErrProcessor = StreamGobbler(errBuffer, process.errorStream)
+
+                val exitCode: Int = try {
+                    stdOutProcessor.join()
+                    stdErrProcessor.join()
+                    process.waitFor()
+                } catch (e: InterruptedException) {
+                    process.destroy()
+                    throw e
+                }
+
+                val out = outBuffer.toString()
+                val err = errBuffer.toString()
+
+                val elapsedTime = System.currentTimeMillis() - startTime
+                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
+                val videoInfo = response.out.let { jsonOutput ->
+                    try {
+                        objectMapper.readValue(jsonOutput, VideoInfo::class.java)
+                            ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
+                    } catch (e: IOException) {
+                        throw YoutubeDLException("Unable to parse video information", e)
+                    }
+                }
+                onSuccess(videoInfo)
+            } catch (e: Exception) {
+                throw e
+            }
+        }
     }
 
-    suspend fun getInfo(
+   /* suspend fun getInfo(
         request: YoutubeDLRequest,
         onSuccess: (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {}
@@ -178,30 +231,10 @@ object YoutubeDL {
             Timber.e(e, "Failed to fetch video information")
             onError(e)
         }
-    }
+    }*/
 
     private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
         return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
-    }
-
-    fun destroyProcessById(id: String): Boolean {
-        if (idProcessMap.containsKey(id)) {
-            val p = idProcessMap[id]
-            Timber.i("Process exists: $p")
-            p?.let{ProcessUtils.killChildProcess(p)}
-            FFMPEGProcessExtractor
-                .stop(id)
-            var alive = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                alive = p!!.isAlive
-            }
-            if (alive) {
-                p!!.destroy()
-                idProcessMap.remove(id)
-                return true
-            }
-        }
-        return false
     }
 
     class CanceledException : Exception()
@@ -210,7 +243,6 @@ object YoutubeDL {
         request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
-        ffmpegProgressCallback: ((size: Int?, line: String?) -> Unit)? = null,
         onError: (Exception) -> Unit = {}
     ): YoutubeDLResponse? {
         return withContext(Dispatchers.IO) {
@@ -255,10 +287,6 @@ object YoutubeDL {
                 val process: Process = processBuilder.start()
 
                 idProcessMap[processId] = process
-                Timber.i("ProcessId: ${processId}")
-                if(ffmpegProgressCallback != null){
-                    FFMPEGProcessExtractor.start(processId, process, ffmpegProgressCallback)
-                }
                 val stdOutProcessor = StreamProcessExtractor(outBuffer, process.inputStream, progressCallBack)
                 val stdErrProcessor = StreamGobbler(errBuffer, process.errorStream)
 
@@ -291,7 +319,7 @@ object YoutubeDL {
                 }
                 idProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
-                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err, processId)
+                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
                 response
             } catch (e: Exception) {
                 onError(e)
@@ -300,7 +328,25 @@ object YoutubeDL {
         }
     }
 
-
+    fun destroyProcessById(id: String): Boolean {
+        if (idProcessMap.containsKey(id)) {
+            val p = idProcessMap[id]
+            Timber.i("Process exists: $p")
+            p?.let{ProcessUtils.killChildProcess(p)}
+            FFMPEGProcessExtractor
+                .stop(id)
+            var alive = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                alive = p!!.isAlive
+            }
+            if (alive) {
+                p!!.destroy()
+                idProcessMap.remove(id)
+                return true
+            }
+        }
+        return false
+    }
 
     @Throws(YoutubeDLException::class)
     suspend fun updateYoutubeDL(
