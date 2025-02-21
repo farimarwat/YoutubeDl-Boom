@@ -6,7 +6,7 @@ His contribution to the Android community has made video downloading easier, and
 🔹 **Our library, YoutubeDL-Boom, is still built on his foundation.**  
 🔹 If you find this project useful and want to support the original work, **please donate to him, not us.** 🙌  
 
-👉 **Visit <a href='https://github.com/junkfood](https://github.com/yausername'>JunkFood's</a> Repository** and show some love! ❤️  
+👉 **Visit <a href='https://github.com/yausername'>JunkFood's</a> Repository** and show some love! ❤️  
 
 ## Why We Modified It (The Need for youtubedl-boom)  
 
