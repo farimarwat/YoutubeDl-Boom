@@ -109,3 +109,35 @@ val job = YoutubeDL.getInstance().init(
 ✔️ **Step 2:** Build a **YoutubeDlFileManager** (optional FFmpeg & Aria2c).  
 ✔️ **Step 3:** Initialize `YoutubeDL` and download required dependencies on first install.  
 
+
+### 🔹 Example: Retrieving Video Information  
+
+```kotlin
+youtubeDl?.getInfo(
+    url = "https://www.youtube.com/watch?v=example",
+    onSuccess = { videoInfo ->
+        println("Title: ${videoInfo.title}")
+        println("Duration: ${videoInfo.duration}")
+    },
+    onError = { error ->
+        println("Error: ${error.message}")
+    }
+)
+```
+
+## 📌 Explanation:  
+- **`url`** → The YouTube video link.  
+- **`onSuccess`** → Callback function that receives `VideoInfo` if retrieval succeeds.  
+  - Prints the **title** and **duration** of the video.  
+- **`onError`** → Callback function that handles errors if fetching fails.  
+  - Prints the error message.  
+
+### ⚙️ How It Works Behind the Scenes:  
+- The **video extraction process runs in the background (IO thread)** using **Coroutines**, ensuring the main UI thread remains free.  
+- The function spawns a separate process to execute **yt-dlp** with the `--dump-json` option to fetch video details.  
+- Standard output (`stdout`) is captured and parsed into a structured `VideoInfo` object.  
+- The `onSuccess` or `onError` callback is triggered based on the result.  
+
+This ensures smooth, non-blocking execution while retrieving video metadata.  
+
+
