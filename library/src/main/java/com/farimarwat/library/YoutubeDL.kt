@@ -10,7 +10,9 @@ import com.farimarwat.common.utils.ZipUtils.unzip
 import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.farimarwat.ffmpeg.FfmpegStreamExtractor
-import com.yausername.youtubedl_android.ProcessUtils
+import com.yausername.youtubedl_android.getChildProcessId
+import com.yausername.youtubedl_android.getProcessId
+import com.yausername.youtubedl_android.killProcess
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -202,31 +204,6 @@ object YoutubeDL {
         }
     }
 
-   /* suspend fun getInfo(
-        request: YoutubeDLRequest,
-        onSuccess: (VideoInfo) -> Unit = {},
-        onError: (Throwable) -> Unit = {}
-    ) {
-        try {
-            request.addOption("--dump-json")
-            val response = withContext(Dispatchers.IO) {
-                download(request, null)
-            }
-            val videoInfo = response?.out.let { jsonOutput ->
-                try {
-                    objectMapper.readValue(jsonOutput, VideoInfo::class.java)
-                        ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
-                } catch (e: IOException) {
-                    throw YoutubeDLException("Unable to parse video information", e)
-                }
-            }
-            onSuccess(videoInfo)
-        } catch (e: Throwable) {
-            Timber.e(e, "Failed to fetch video information")
-            onError(e)
-        }
-    }*/
-
     private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
         return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
     }
@@ -241,6 +218,7 @@ object YoutubeDL {
         onEndProcess:(YoutubeDLResponse)->Unit={},
         onError: (Throwable) -> Unit = {}
     ): Job {
+         val ffmpegStreamExtractor = FfmpegStreamExtractor()
         val exception = CoroutineExceptionHandler { _, throwable ->
             onError(throwable)
         }
@@ -291,7 +269,7 @@ object YoutubeDL {
                 val stdOutFfmpeg = if(request.hasOption("--downloader")){
                     val downloader = request.getOption("--downloader").toString()
                      if(downloader == "ffmpeg"){
-                        FfmpegStreamExtractor.readStream(process,progressCallBack)
+                        ffmpegStreamExtractor.readStream(process,progressCallBack)
                     } else {
                         null
                     }
@@ -336,18 +314,14 @@ object YoutubeDL {
 
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
-            val p = idProcessMap[id]
-            p?.let{ProcessUtils.killChildProcess(p)}
-            if (p != null && FfmpegStreamExtractor.hasFfmpegProcess(p)) {
-                FfmpegStreamExtractor
-                    .stopNow(p)
-            }
+            val pythonProcess = idProcessMap[id]
+            pythonProcess?.let{pythonProcess.getProcessId().getChildProcessId().killProcess()}
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                alive = p!!.isAlive
+                alive = pythonProcess!!.isAlive
             }
             if (alive) {
-                p!!.destroy()
+                pythonProcess!!.destroy()
                 idProcessMap.remove(id)
                 return true
             }

@@ -154,90 +154,88 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
-                            if(videoInfo != null){
-                                Column {
-                                    Button(
-                                        onClick = {
-                                            scope.launch {
-                                                if(url.isNotEmpty()){
-                                                    youtubeDl?.let {
-                                                        val request = YoutubeDLRequest(url)
-                                                        request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
-                                                        request.addOption("--downloader","ffmpeg")
-                                                        if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                           it.download(
-                                                                request = request,
-                                                                pId = processId,
-                                                                progressCallBack = { progress, eta,line ->
-                                                                    downloadProgress = progress
-                                                                    downloadLine = line
-                                                                    Timber.i("line: $line")
-                                                                },
-                                                               onStartProcess = { id ->
-                                                                   processId = id
-                                                                   Timber.i("ProcessId: ${id}")
-                                                               },
-                                                               onEndProcess = { response ->
-                                                                   Timber.i("YoutubeDlResponse: $response")
-                                                               },
-                                                                onError = { error ->
-                                                                    Timber.e("OnExecute: $error")
-                                                                }
-                                                            )
-                                                        }
+                            Column {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            if(url.isNotEmpty()){
+                                                youtubeDl?.let {
+                                                    val request = YoutubeDLRequest(url)
+                                                    request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
+                                                    request.addOption("--downloader","ffmpeg")
+                                                    if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
+                                                        it.download(
+                                                            request = request,
+                                                            pId = processId,
+                                                            progressCallBack = { progress, eta,line ->
+                                                                downloadProgress = progress
+                                                                downloadLine = line
+                                                                Timber.i("line: $line")
+                                                            },
+                                                            onStartProcess = { id ->
+                                                                processId = id
+                                                                Timber.i("ProcessId: ${id}")
+                                                            },
+                                                            onEndProcess = { response ->
+                                                                Timber.i("YoutubeDlResponse: $response")
+                                                            },
+                                                            onError = { error ->
+                                                                Timber.e("OnExecute: $error")
+                                                            }
+                                                        )
                                                     }
                                                 }
                                             }
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp)
-                                    ) {
-                                        Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "Download", style = MaterialTheme.typography.titleMedium)
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = {
-                                            Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
-                                            youtubeDl?.destroyProcessById(
-                                                processId
-                                            )
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp)
+                                ) {
+                                    Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "Download", style = MaterialTheme.typography.titleMedium)
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
+                                        youtubeDl?.destroyProcessById(
+                                            processId
+                                        )
                                     },shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary
-                                        ),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp)){
+                                    Text("Cancel")
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                // Progress Bar
+                                if (downloadProgress > 0) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadProgress / 100f },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(56.dp)){
-                                        Text("Cancel")
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    // Progress Bar
-                                    if (downloadProgress > 0) {
-                                        LinearProgressIndicator(
-                                            progress = { downloadProgress / 100f },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(8.dp),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        )
+                                            .height(8.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    )
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                                        // Text showing Estimated Time Remaining (ETS)
-                                        Text(
-                                            text = "Estimated time: $downloadLine",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
+                                    // Text showing Estimated Time Remaining (ETS)
+                                    Text(
+                                        text = "Estimated time: $downloadLine",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(16.dp))

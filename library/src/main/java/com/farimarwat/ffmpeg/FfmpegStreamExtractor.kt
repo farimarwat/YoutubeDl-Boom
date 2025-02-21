@@ -1,29 +1,31 @@
 package com.farimarwat.ffmpeg
 
 import com.yausername.youtubedl_android.ProcessUtils
+import com.yausername.youtubedl_android.getChildProcessId
+import com.yausername.youtubedl_android.getProcessId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
 
-object FfmpegStreamExtractor{
-    private var mFfmpegPid = 0
-    private var shouldStop = false
+class FfmpegStreamExtractor{
+
      fun readStream(process:Process, progressCallBack: ((Float, Long, String) -> Unit)? = null):Job =
          CoroutineScope(Dispatchers.IO).launch {
         try {
-            val pythonPID = ProcessUtils.getPythonProcessId(process)
+            val pythonPID = process.getProcessId()
+            var ffmpegId:Int
             var line: String?
             var ffmpegInitiated = false
+            var shouldStop = false
             while (!shouldStop) {
-                mFfmpegPid = ProcessUtils.getFFMPEGProcessId(pythonPID)
-                val progressFilePath = "/proc/$mFfmpegPid/fd/2"
+                ffmpegId = pythonPID.getChildProcessId()
+                val progressFilePath = "/proc/$ffmpegId/fd/2"
                 val progressFile = File(progressFilePath)
                 if (progressFile.exists()) {
                     ffmpegInitiated = true
@@ -35,7 +37,7 @@ object FfmpegStreamExtractor{
                     }
                 }
                 sleep(1000)
-                if(ffmpegInitiated && mFfmpegPid == -1){
+                if(ffmpegInitiated && ffmpegId == -1){
                     shouldStop = true
                 }
             }
@@ -43,18 +45,4 @@ object FfmpegStreamExtractor{
             ex.printStackTrace()
         }
     }
-
-    fun stopNow(process: Process) {
-        val pythonPID = ProcessUtils.getPythonProcessId(process)
-        val ffmpegid = ProcessUtils.getFFMPEGProcessId(pythonPID)
-        ProcessUtils.killProcess(ffmpegid)
-        process.destroy()
-        shouldStop = true
-    }
-    fun hasFfmpegProcess(process: Process):Boolean{
-        val pythonPID = ProcessUtils.getPythonProcessId(process)
-        val ffmpegid = ProcessUtils.getFFMPEGProcessId(pythonPID)
-        return if(ffmpegid > 0) true else false
-    }
-
 }
