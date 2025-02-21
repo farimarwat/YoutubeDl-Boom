@@ -52,10 +52,10 @@ object YoutubeDL {
        return scope.launch {
            if(fileManager.isReady(appContext)){
                performInit(appContext)
-               if(fileManager.mWithFfmpeg){
+               if(fileManager.isFfmpegEnabled()){
                    FFmpeg.init(appContext)
                }
-               if(fileManager.mWithAria2c){
+               if(fileManager.isAria2cEnabled()){
                    Aria2c.init(appContext)
                }
                withContext(Dispatchers.Main){
@@ -144,8 +144,18 @@ object YoutubeDL {
     private fun assertInit() {
         check(initialized) { "instance not initialized" }
     }
+    private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
+        return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
+    }
 
-     fun getInfo(
+    /**
+     * Retrieves video information from the given URL.
+     *
+     * @param url The URL of the video.
+     * @param onSuccess Callback function invoked with the retrieved [VideoInfo] on success.
+     * @param onError Callback function invoked with an error [Throwable] if retrieval fails.
+     */
+    fun getInfo(
         url: String,
         onSuccess: (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {})
@@ -212,13 +222,21 @@ object YoutubeDL {
         }
     }
 
-    private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
-        return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
-    }
-
     class CanceledException : Exception()
 
-     fun download(
+    /**
+     * Downloads a video using the given request.
+     *
+     * @param request The [YoutubeDLRequest] containing download parameters.
+     * @param pId Optional process ID to track the download.
+     * @param progressCallBack Callback function for reporting progress with percentage, elapsed time, and speed.
+     * @param onStartProcess Callback function invoked when the process starts with the process ID.
+     * @param onEndProcess Callback function invoked when the process ends with the [YoutubeDLResponse].
+     * @param onError Callback function invoked if an error occurs during the download.
+     * @return A [Job] representing the coroutine handling the download process.
+     * @throws YoutubeDLException If an error occurs during execution.
+     */
+    fun download(
         request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
@@ -327,6 +345,12 @@ object YoutubeDL {
         }
     }
 
+    /**
+     * Terminates a running process by its ID.
+     *
+     * @param id The unique identifier of the process to be terminated.
+     * @return `true` if the process was successfully destroyed, `false` if the process was not found or could not be terminated.
+     */
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
             val pythonProcess = idProcessMap[id]
