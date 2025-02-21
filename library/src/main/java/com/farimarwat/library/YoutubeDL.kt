@@ -40,45 +40,47 @@ object YoutubeDL {
     private var TMPDIR: String = ""
     private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
-     fun init(appContext: Context,
-              fileManager:YoutubeDlFileManager = YoutubeDlFileManager,
-              onSuccess:suspend (YoutubeDL)->Unit={},
-              onError:(Throwable)->Unit={}):Job {
-         val exception = CoroutineExceptionHandler { _, throwable ->
-             onError(throwable)
-         }
-         val job = Job()
-         val scope = CoroutineScope(Dispatchers.IO+job+exception)
-       return scope.launch {
-           if(fileManager.isReady(appContext)){
-               performInit(appContext)
-               if(fileManager.isFfmpegEnabled()){
-                   FFmpeg.init(appContext)
-               }
-               if(fileManager.isAria2cEnabled()){
-                   Aria2c.init(appContext)
-               }
-               withContext(Dispatchers.Main){
-                   onSuccess(this@YoutubeDL)
-               }
-           } else {
-               fileManager.downloadLibFiles{ success, error ->
-                   if(success){
-                       performInit(appContext)
-                       withContext(Dispatchers.Main){
-                           onSuccess(this@YoutubeDL)
-                       }
-                   } else {
-                       withContext(Dispatchers.Main){
-                           onSuccess(this@YoutubeDL)
-                       }
-                   }
-               }
-           }
-       }
+    fun init(
+        appContext: Context,
+        fileManager: YoutubeDlFileManager = YoutubeDlFileManager,
+        onSuccess: suspend (YoutubeDL) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ): Job {
+        val exception = CoroutineExceptionHandler { _, throwable ->
+            onError(throwable)
+        }
+        val job = Job()
+        val scope = CoroutineScope(Dispatchers.IO + job + exception)
+        return scope.launch {
+            if (fileManager.isReady(appContext)) {
+                performInit(appContext)
+                if (fileManager.isFfmpegEnabled()) {
+                    FFmpeg.init(appContext)
+                }
+                if (fileManager.isAria2cEnabled()) {
+                    Aria2c.init(appContext)
+                }
+                withContext(Dispatchers.Main) {
+                    onSuccess(this@YoutubeDL)
+                }
+            } else {
+                fileManager.downloadLibFiles { success, error ->
+                    if (success) {
+                        performInit(appContext)
+                        withContext(Dispatchers.Main) {
+                            onSuccess(this@YoutubeDL)
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            onSuccess(this@YoutubeDL)
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    private fun performInit(appContext: Context){
+    private fun performInit(appContext: Context) {
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
         if (!baseDir.exists()) baseDir.mkdir()
@@ -101,6 +103,7 @@ object YoutubeDL {
         init_ytdlp(ytdlpDir)
         initialized = true
     }
+
     @Throws(YoutubeDLException::class)
     internal fun init_ytdlp(ytdlpDir: File) {
         if (!ytdlpDir.exists()) ytdlpDir.mkdirs()
@@ -144,6 +147,7 @@ object YoutubeDL {
     private fun assertInit() {
         check(initialized) { "instance not initialized" }
     }
+
     private fun ignoreErrors(request: YoutubeDLRequest, out: String): Boolean {
         return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
     }
@@ -158,13 +162,13 @@ object YoutubeDL {
     fun getInfo(
         url: String,
         onSuccess: (VideoInfo) -> Unit = {},
-        onError: (Throwable) -> Unit = {})
-    {
-         var streamProcessExtractor:StreamProcessExtractor?
-         var streamGobbler:StreamGobbler?
-         val exception = CoroutineExceptionHandler { _, throwable ->
-             onError(throwable)
-         }
+        onError: (Throwable) -> Unit = {}
+    ) {
+        var streamProcessExtractor: StreamProcessExtractor?
+        var streamGobbler: StreamGobbler?
+        val exception = CoroutineExceptionHandler { _, throwable ->
+            onError(throwable)
+        }
         CoroutineScope(Dispatchers.IO + exception).launch {
             val request = YoutubeDLRequest(url)
             request.addOption("--dump-json")
@@ -189,7 +193,8 @@ object YoutubeDL {
 
                 val process: Process = processBuilder.start()
                 streamProcessExtractor = StreamProcessExtractor()
-                val stdOutProcessor = streamProcessExtractor?.readStream(outBuffer, process.inputStream, null)
+                val stdOutProcessor =
+                    streamProcessExtractor?.readStream(outBuffer, process.inputStream, null)
 
                 streamGobbler = StreamGobbler()
                 val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
@@ -212,12 +217,12 @@ object YoutubeDL {
                         throw YoutubeDLException("Unable to parse video information", e)
                     }
                 }
-                withContext(Dispatchers.Main){
+                withContext(Dispatchers.Main) {
                     onSuccess(videoInfo)
                 }
             } catch (e: Exception) {
                 throw e
-            }finally {
+            } finally {
                 streamGobbler = null
                 streamProcessExtractor = null
             }
@@ -242,22 +247,22 @@ object YoutubeDL {
         request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
-        onStartProcess:(String)->Unit={},
-        onEndProcess:(YoutubeDLResponse)->Unit={},
+        onStartProcess: (String) -> Unit = {},
+        onEndProcess: (YoutubeDLResponse) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ): Job {
-         var ffmpegStreamExtractor:FfmpegStreamExtractor?
-         var streamProcessExtractor:StreamProcessExtractor?
-         var streamGobbler:StreamGobbler?
+        var ffmpegStreamExtractor: FfmpegStreamExtractor?
+        var streamProcessExtractor: StreamProcessExtractor?
+        var streamGobbler: StreamGobbler?
         val exception = CoroutineExceptionHandler { _, throwable ->
             onError(throwable)
         }
         return CoroutineScope(Dispatchers.IO + exception).launch {
             try {
-                val processId = if(pId.isNullOrEmpty()) UUID.randomUUID().toString() else pId
+                val processId = if (pId.isNullOrEmpty()) UUID.randomUUID().toString() else pId
                 assertInit()
-                if (idProcessMap.containsKey(processId)){
-                   throw  YoutubeDLException("Process ID already exists")
+                if (idProcessMap.containsKey(processId)) {
+                    throw YoutubeDLException("Process ID already exists")
                 }
 
                 if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
@@ -266,7 +271,10 @@ object YoutubeDL {
                 if (request.buildCommand().contains("libaria2c.so")) {
                     request
                         .addOption("--external-downloader-args", "aria2c:--summary-interval=1")
-                        .addOption("--external-downloader-args", "aria2c:--ca-certificate=$ENV_SSL_CERT_FILE")
+                        .addOption(
+                            "--external-downloader-args",
+                            "aria2c:--ca-certificate=$ENV_SSL_CERT_FILE"
+                        )
                 }
 
                 request.addOption("--ffmpeg-location", ffmpegPath!!.absolutePath)
@@ -290,19 +298,23 @@ object YoutubeDL {
 
 
                 val process: Process = processBuilder.start()
-                withContext(Dispatchers.Main){
+                withContext(Dispatchers.Main) {
                     onStartProcess(processId)
                 }
                 idProcessMap[processId] = process
                 streamProcessExtractor = StreamProcessExtractor()
                 streamGobbler = StreamGobbler()
-                val stdOutProcessor = streamProcessExtractor?.readStream(outBuffer, process.inputStream, progressCallBack)
+                val stdOutProcessor = streamProcessExtractor?.readStream(
+                    outBuffer,
+                    process.inputStream,
+                    progressCallBack
+                )
                 val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
-                val stdOutFfmpeg = if(request.hasOption("--downloader")){
+                val stdOutFfmpeg = if (request.hasOption("--downloader")) {
                     val downloader = request.getOption("--downloader").toString()
-                     if(downloader == "ffmpeg"){
-                         ffmpegStreamExtractor = FfmpegStreamExtractor()
-                        ffmpegStreamExtractor?.readStream(process,progressCallBack)
+                    if (downloader == "ffmpeg") {
+                        ffmpegStreamExtractor = FfmpegStreamExtractor()
+                        ffmpegStreamExtractor?.readStream(process, progressCallBack)
                     } else {
                         null
                     }
@@ -318,7 +330,7 @@ object YoutubeDL {
                 } catch (e: InterruptedException) {
                     process.destroy()
                     idProcessMap.remove(processId)
-                    throw  e
+                    throw e
                 }
 
                 val out = outBuffer.toString()
@@ -338,7 +350,7 @@ object YoutubeDL {
                 idProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-                withContext(Dispatchers.Main){
+                withContext(Dispatchers.Main) {
                     onEndProcess(response)
                 }
             } catch (e: Exception) {
@@ -360,7 +372,7 @@ object YoutubeDL {
     fun destroyProcessById(id: String): Boolean {
         if (idProcessMap.containsKey(id)) {
             val pythonProcess = idProcessMap[id]
-            pythonProcess?.let{pythonProcess.getProcessId().getChildProcessId().killProcess()}
+            pythonProcess?.let { pythonProcess.getProcessId().getChildProcessId().killProcess() }
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 alive = pythonProcess!!.isAlive
@@ -378,17 +390,17 @@ object YoutubeDL {
     suspend fun updateYoutubeDL(
         appContext: Context,
         updateChannel: UpdateChannel = UpdateChannel.STABLE,
-        onSuccess: (UpdateStatus) -> Unit={},
-        onError: (Throwable) -> Unit={}
+        onSuccess: (UpdateStatus) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
     ) {
-        withContext(Dispatchers.IO){
-            if(!YoutubeDlFileManager.isReady(appContext)) onError(YoutubeDLException("Upddate Error: Kindly initialize YoutubeDl first"))
+        withContext(Dispatchers.IO) {
+            if (!YoutubeDlFileManager.isReady(appContext)) onError(YoutubeDLException("Upddate Error: Kindly initialize YoutubeDl first"))
             assertInit()
-             try {
+            try {
                 val status = YoutubeDLUpdater.update(appContext, updateChannel)
-                 onSuccess(status)
+                onSuccess(status)
             } catch (e: IOException) {
-               onError(e)
+                onError(e)
             }
         }
     }
@@ -409,6 +421,7 @@ object YoutubeDL {
         object STABLE : UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
         object NIGHTLY :
             UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest")
+
         object MASTER :
             UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-master-builds/releases/latest")
 
