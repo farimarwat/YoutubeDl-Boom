@@ -33,3 +33,79 @@ While **youtubedl-android** is an excellent library (huge thanks to JunkFood for
 - **Solution:** We **simplified the structure** by consolidating it into **a single module with a single dependency**, making integration much easier.  
 
 With these improvements, **youtubedl-boom** is now more efficient, lightweight, and developer-friendly 🚀.  
+
+
+## Installation
+
+To use `youtubedl-boom` in your Android project, add the following dependency in your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.2")
+}
+```
+
+#  📥 YoutubeDl Setup Guide  
+
+## 🔹 Overview  
+`YoutubeDlFileManager` handles the downloading of required dependencies like **YouTubeDL, FFmpeg, and Aria2c**. This ensures minimal **APK size** by fetching only necessary files during the first install.  
+
+---
+
+## 🛠 Step 1: Declare a Global Variable  
+We create a **nullable** global variable to store the `YoutubeDL` instance.  
+This will be initialized **after a successful YouTubeDL setup**.  
+
+```kotlin
+var youtubeDl: YoutubeDL? = null
+```
+- This is usually done in the **App class** or an appropriate singleton.  
+- Initially `null`, it will be set when initialization succeeds.  
+
+---
+
+##  ⚡ Step 2: Create the Manager Instance  
+Before initializing YouTubeDL, we need a **manager** to handle dependency downloads.  
+
+```kotlin
+val manager = YoutubeDlFileManager
+    .Builder()
+    .withFFMpeg()  // Optional: Needed for merging split video downloads
+    .withAria2c()  // Optional: For faster downloads
+    .build()
+```
+
+- `.withFFMpeg()`: **Required if downloads are split into chunks** (e.g., video & audio separate).  
+- `.withAria2c()`: **Optional** but can improve download performance.  
+- **Manager ensures necessary files are downloaded on first install.**  
+
+---
+
+## 🚀 Step 3: Initialize YouTubeDL  
+Once the manager is set up, we initialize **YouTubeDL**.  
+
+```kotlin
+val job = YoutubeDL.getInstance().init(
+    appContext = this,  // Application context
+    fileManager = manager,           // Required to download missing dependencies
+    onSuccess = {
+        youtubeDl = it  // Set the global variable
+    },
+    onError = {
+        Timber.e(it)  // Log any errors
+    }
+)
+```
+
+### ✅ Explanation:  
+- `fileManager = manager`: **Downloads required files. Downloads are done only one time when app is first executed.**  
+- `youtubeDl = it`: Stores the initialized **YouTubeDL instance** for future use.  
+- If initialization fails, the error is logged with `Timber.e(it)`.  
+
+---
+
+## 🎯 Summary  
+✔️ **Step 1:** Create a global variable for `YoutubeDL`.  
+✔️ **Step 2:** Build a **YoutubeDlFileManager** (optional FFmpeg & Aria2c).  
+✔️ **Step 3:** Initialize `YoutubeDL` and download required dependencies on first install.  
+
