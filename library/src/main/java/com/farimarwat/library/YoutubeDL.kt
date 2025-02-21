@@ -150,6 +150,8 @@ object YoutubeDL {
         onSuccess: (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {})
     {
+         var streamProcessExtractor:StreamProcessExtractor?
+         var streamGobbler:StreamGobbler?
          val exception = CoroutineExceptionHandler { _, throwable ->
              onError(throwable)
          }
@@ -176,12 +178,15 @@ object YoutubeDL {
                 }
 
                 val process: Process = processBuilder.start()
-                val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, null)
-                val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
+                streamProcessExtractor = StreamProcessExtractor()
+                val stdOutProcessor = streamProcessExtractor?.readStream(outBuffer, process.inputStream, null)
+
+                streamGobbler = StreamGobbler()
+                val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
 
                 try {
-                    stdOutProcessor.join()
-                    stdErrProcessor.join()
+                    stdOutProcessor?.join()
+                    stdErrProcessor?.join()
                     process.waitFor()
                 } catch (e: InterruptedException) {
                     process.destroy()
@@ -200,6 +205,9 @@ object YoutubeDL {
                 onSuccess(videoInfo)
             } catch (e: Exception) {
                 throw e
+            }finally {
+                streamGobbler = null
+                streamProcessExtractor = null
             }
         }
     }
@@ -218,7 +226,9 @@ object YoutubeDL {
         onEndProcess:(YoutubeDLResponse)->Unit={},
         onError: (Throwable) -> Unit = {}
     ): Job {
-         val ffmpegStreamExtractor = FfmpegStreamExtractor()
+         var ffmpegStreamExtractor:FfmpegStreamExtractor?
+         var streamProcessExtractor:StreamProcessExtractor?
+         var streamGobbler:StreamGobbler?
         val exception = CoroutineExceptionHandler { _, throwable ->
             onError(throwable)
         }
@@ -247,8 +257,6 @@ object YoutubeDL {
                 val command: MutableList<String?> = ArrayList()
                 command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
                 command.addAll(args)
-
-                Timber.i("Mycommand: $command")
                 val processBuilder = ProcessBuilder(command).apply {
                     environment().apply {
                         this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
@@ -264,12 +272,15 @@ object YoutubeDL {
                 val process: Process = processBuilder.start()
                 onStartProcess(processId)
                 idProcessMap[processId] = process
-                val stdOutProcessor = StreamProcessExtractor.readStream(outBuffer, process.inputStream, progressCallBack)
-                val stdErrProcessor = StreamGobbler.readStream(errBuffer, process.errorStream)
+                streamProcessExtractor = StreamProcessExtractor()
+                streamGobbler = StreamGobbler()
+                val stdOutProcessor = streamProcessExtractor?.readStream(outBuffer, process.inputStream, progressCallBack)
+                val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
                 val stdOutFfmpeg = if(request.hasOption("--downloader")){
                     val downloader = request.getOption("--downloader").toString()
                      if(downloader == "ffmpeg"){
-                        ffmpegStreamExtractor.readStream(process,progressCallBack)
+                         ffmpegStreamExtractor = FfmpegStreamExtractor()
+                        ffmpegStreamExtractor?.readStream(process,progressCallBack)
                     } else {
                         null
                     }
@@ -278,8 +289,8 @@ object YoutubeDL {
                 }
 
                 val exitCode: Int = try {
-                    stdOutProcessor.join()
-                    stdErrProcessor.join()
+                    stdOutProcessor?.join()
+                    stdErrProcessor?.join()
                     stdOutFfmpeg?.join()
                     process.waitFor()
                 } catch (e: InterruptedException) {
@@ -308,6 +319,10 @@ object YoutubeDL {
                 onEndProcess(response)
             } catch (e: Exception) {
                 throw e
+            } finally {
+                ffmpegStreamExtractor = null
+                streamGobbler = null
+                streamProcessExtractor = null
             }
         }
     }

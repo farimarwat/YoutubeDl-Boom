@@ -37,7 +37,7 @@ fun Int.getChildProcessId(): Int {
         }
 
         val exitCode = process.waitFor()
-        Timber.i("Process exited with code: $exitCode")
+        Timber.i("No ffmpeg process found")
         -1
     } catch (e: Exception) {
         e.printStackTrace()

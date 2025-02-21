@@ -13,7 +13,7 @@ import java.io.FileInputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
 
-class FfmpegStreamExtractor{
+internal class FfmpegStreamExtractor{
 
      fun readStream(process:Process, progressCallBack: ((Float, Long, String) -> Unit)? = null):Job =
          CoroutineScope(Dispatchers.IO).launch {
@@ -33,7 +33,7 @@ class FfmpegStreamExtractor{
                     val reader = BufferedReader(InputStreamReader(inputStream))
                     while (reader.readLine().also { line = it } != null) {
                         val size = ProcessUtils.extractSize(line)
-                        progressCallBack?.let { it(0f  ,0L,line.toString())}
+                        progressCallBack?.let { it(-1f  ,-1L,line.toString())}
                     }
                 }
                 sleep(1000)

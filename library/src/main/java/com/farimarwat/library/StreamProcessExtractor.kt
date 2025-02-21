@@ -13,15 +13,15 @@ import java.io.Reader
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
 
-internal object StreamProcessExtractor {
-    private val TAG = StreamProcessExtractor::class.java.simpleName
-    private const val ETA: Long = -1
-    private const val PERCENT = -1.0f
-    private const val GROUP_PERCENT = 1
-    private const val GROUP_MINUTES = 2
-    private const val GROUP_SECONDS = 3
-
-
+internal class StreamProcessExtractor {
+    companion object{
+        private val TAG = StreamProcessExtractor::class.java.simpleName
+        private const val ETA: Long = -1
+        private const val PERCENT = -1.0f
+        private const val GROUP_PERCENT = 1
+        private const val GROUP_MINUTES = 2
+        private const val GROUP_SECONDS = 3
+    }
     private lateinit var buffer: StringBuffer
     private lateinit var stream: InputStream
     private var callback: ((Float, Long, String) -> Unit)? = null

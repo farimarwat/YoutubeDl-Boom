@@ -12,7 +12,7 @@ import java.io.InputStreamReader
 import java.io.Reader
 import java.nio.charset.StandardCharsets
 
-internal object StreamGobbler{
+internal class StreamGobbler{
     private lateinit var buffer: StringBuffer
     private lateinit var stream: InputStream
     private val TAG = StreamGobbler::class.java.simpleName

@@ -79,6 +79,10 @@ class VideoInfo {
     val manifestUrl: String? = null
     val url: String? = null
 
+    @JsonProperty("is_live")
+    val isLive:Boolean? = null
+
+
     override fun toString(): String {
         return """
             VideoInfo(
