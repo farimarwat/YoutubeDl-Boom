@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
                 val manager = YoutubeDlFileManager
                     .Builder()
                     .withFFMpeg()
+                    .withAria2c()
                     .build()
 
                 val job = YoutubeDL.getInstance().init(

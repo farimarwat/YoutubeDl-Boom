@@ -212,7 +212,9 @@ object YoutubeDL {
                         throw YoutubeDLException("Unable to parse video information", e)
                     }
                 }
-                onSuccess(videoInfo)
+                withContext(Dispatchers.Main){
+                    onSuccess(videoInfo)
+                }
             } catch (e: Exception) {
                 throw e
             }finally {
@@ -288,7 +290,9 @@ object YoutubeDL {
 
 
                 val process: Process = processBuilder.start()
-                onStartProcess(processId)
+                withContext(Dispatchers.Main){
+                    onStartProcess(processId)
+                }
                 idProcessMap[processId] = process
                 streamProcessExtractor = StreamProcessExtractor()
                 streamGobbler = StreamGobbler()
@@ -334,7 +338,9 @@ object YoutubeDL {
                 idProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-                onEndProcess(response)
+                withContext(Dispatchers.Main){
+                    onEndProcess(response)
+                }
             } catch (e: Exception) {
                 throw e
             } finally {
