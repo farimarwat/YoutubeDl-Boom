@@ -201,3 +201,8 @@ val job = download(
 - `yt-dlp` generates detailed logs in `outputLine`, which can be parsed for specific information.
 - The function ensures proper error handling and prevents duplicate Process IDs.
 
+## About Me  
+
+I am a **Senior Mobile Developer** specializing in **Android and iOS**, with **7+ years of experience** in Android development. Additionally, I have **2+ years of experience** as a **Full-Stack Web Developer**, working with **PHP, Django, and Golang**.  
+
+📌 **LinkedIn:** [Farman Ullah Marwat](https://www.linkedin.com/in/farman-ullah-marwat-a02859196/)  
