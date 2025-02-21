@@ -3,6 +3,7 @@ package com.farimarwat.aria2c
 import android.content.Context
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.utils.ZipUtils
+import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.YoutubeDLException
 import org.apache.commons.io.FileUtils
 import java.io.File
@@ -16,7 +17,7 @@ object Aria2c {
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
         if (!baseDir.exists()) baseDir.mkdir()
-        binDir = File(appContext.applicationInfo.nativeLibraryDir)
+        binDir = YoutubeDlFileManager.DOWNLOAD_DIR
         val packagesDir = File(baseDir, packagesRoot)
         val aria2cDir = File(packagesDir, aria2cDirName)
         initAria2c(appContext, aria2cDir)

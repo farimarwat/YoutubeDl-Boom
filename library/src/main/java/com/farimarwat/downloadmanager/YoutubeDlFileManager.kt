@@ -2,7 +2,8 @@ package com.farimarwat.downloadmanager
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
+import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
+import com.farimarwat.ffmpeg.FFmpeg
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLUpdater
 import kotlinx.coroutines.*
@@ -12,15 +13,12 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-object NativeLibManager {
+object YoutubeDlFileManager {
     private const val TAG = "NativeLibManager"
-
-
-
+    var mWithFfmpeg = false
+    var mWithAria2c = false
     private val baseUrls = mutableListOf(
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/ffmpeg/src/main/jniLibs/{arch}/libffmpeg.zip.so",
-        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/aria2c/src/main/jniLibs/{arch}/libaria2c.zip.so",
+        "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so"
     )
     var DOWNLOAD_DIR:File? = null
     val arch:String
@@ -97,5 +95,26 @@ object NativeLibManager {
             }
         }
     }
-
+    private fun getInstance(ffmpeg:Boolean = false, aria2c:Boolean = false):YoutubeDlFileManager{
+        mWithFfmpeg = ffmpeg
+        mWithAria2c = aria2c
+        return this
+    }
+    class Builder{
+        var withFfmpeg = false
+        var withAria2c = false
+        fun withFFMpeg():Builder{
+            baseUrls.add(YoutubeDlArtifact.FFMPEG)
+            withFfmpeg = true
+            return this
+        }
+        fun withAria2c():Builder{
+            baseUrls.add(YoutubeDlArtifact.ARIA2C)
+            withAria2c = true
+            return this
+        }
+        fun build():YoutubeDlFileManager{
+            return getInstance(withFfmpeg,withAria2c)
+        }
+    }
 }

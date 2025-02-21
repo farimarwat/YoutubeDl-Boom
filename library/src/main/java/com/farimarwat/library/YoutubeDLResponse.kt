@@ -1,6 +1,6 @@
 package com.farimarwat.library
 
-class YoutubeDLResponse(
+data class YoutubeDLResponse(
     val command: List<String?>,
     val exitCode: Int,
     val elapsedTime: Long,

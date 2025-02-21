@@ -1,6 +1,11 @@
 package com.farimarwat.library
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -8,22 +13,28 @@ import java.io.Reader
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
 
-internal class StreamProcessExtractor(
-    private val buffer: StringBuffer,
-    private val stream: InputStream,
-    private val callback: ((Float, Long, String) -> Unit)?
-) : Thread() {
-    private val p = Pattern.compile("\\[download\\]\\s+(\\d+\\.\\d)% .* ETA (\\d+):(\\d+)")
+internal class StreamProcessExtractor {
+    companion object{
+        private val TAG = StreamProcessExtractor::class.java.simpleName
+        private const val ETA: Long = -1
+        private const val PERCENT = -1.0f
+        private const val GROUP_PERCENT = 1
+        private const val GROUP_MINUTES = 2
+        private const val GROUP_SECONDS = 3
+    }
+    private lateinit var buffer: StringBuffer
+    private lateinit var stream: InputStream
+    private var callback: ((Float, Long, String) -> Unit)? = null
+    private val p = Pattern.compile("\\[download]\\s+(\\d+\\.\\d)% .* ETA (\\d+):(\\d+)")
     private val pAria2c =
         Pattern.compile("\\[#\\w{6}.*\\((\\d*\\.*\\d+)%\\).*?((\\d+)m)*((\\d+)s)*]")
     private var progress = PERCENT
     private var eta = ETA
 
-    init {
-        start()
-    }
-
-    override fun run() {
+    fun readStream(buffer:StringBuffer, stream: InputStream,callback: ((Float, Long, String) -> Unit)? = null):Job = CoroutineScope(Dispatchers.IO).launch {
+        this@StreamProcessExtractor.buffer = buffer
+        this@StreamProcessExtractor.stream = stream
+        this@StreamProcessExtractor.callback = callback
         try {
             val input: Reader = InputStreamReader(stream, StandardCharsets.UTF_8)
             val currentLine = StringBuilder()
@@ -38,8 +49,8 @@ internal class StreamProcessExtractor(
                 }
                 currentLine.append(nextChar.toChar())
             }
-        } catch (e: IOException) {
-            if (BuildConfig.DEBUG) Log.e(TAG, "failed to read stream", e)
+        } catch (e: Exception) {
+            Timber.i("failed to read stream", e)
         }
     }
 
@@ -77,12 +88,5 @@ internal class StreamProcessExtractor(
         return minutes.toInt() * 60 + seconds.toInt()
     }
 
-    companion object {
-        private val TAG = StreamProcessExtractor::class.java.simpleName
-        private const val ETA: Long = -1
-        private const val PERCENT = -1.0f
-        private const val GROUP_PERCENT = 1
-        private const val GROUP_MINUTES = 2
-        private const val GROUP_SECONDS = 3
-    }
+
 }
