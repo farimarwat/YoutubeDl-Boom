@@ -63,6 +63,8 @@ class MainActivity : ComponentActivity() {
             var youtubeDLResponse:YoutubeDLResponse? = null
             var processId = ""
             val scope = rememberCoroutineScope()
+
+
             LaunchedEffect(Unit) {
                 val manager = YoutubeDlFileManager
                     .Builder()
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
                     appContext = this@MainActivity,
                     fileManager = manager,
                     onSuccess = {
+                        Timber.i("Initialized successfully")
                         youtubeDl = it
                     },
                     onError = {
@@ -80,6 +83,9 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+
+
+
 
             YoutubeDlBoomTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
