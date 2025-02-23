@@ -1,5 +1,7 @@
 ## 🎩 Acknowledgment & Credits  
 
+### 😔 Sorry for Java and x86, x64
+
 Hats off to **JunkFood** for his outstanding work on <a href='https://github.com/yausername/youtubedl-android'>**youtubedl-android**!</a> 🎉  
 His contribution to the Android community has made video downloading easier, and we deeply appreciate his efforts.  
 
