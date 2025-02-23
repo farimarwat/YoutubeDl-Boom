@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
-            var youtubeDLResponse:YoutubeDLResponse? = null
+            var youtubeDLResponse: YoutubeDLResponse? = null
             var processId = ""
             val scope = rememberCoroutineScope()
 
@@ -104,7 +104,10 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
+                                    .background(
+                                        MaterialTheme.colorScheme.surface,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 OutlinedTextField(
@@ -164,16 +167,22 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            if(url.isNotEmpty()){
+                                            if (url.isNotEmpty()) {
                                                 youtubeDl?.let {
                                                     val request = YoutubeDLRequest(url)
-                                                    request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
-                                                    request.addOption("--downloader","ffmpeg")
-                                                    if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
+                                                    request.addOption(
+                                                        "-o",
+                                                        StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
+                                                    );
+                                                    //request.addOption("--downloader", "ffmpeg")
+                                                    if (StoragePermissionHelper.checkAndRequestStoragePermission(
+                                                            this@MainActivity
+                                                        )
+                                                    ) {
                                                         it.download(
                                                             request = request,
                                                             pId = processId,
-                                                            progressCallBack = { progress, eta,line ->
+                                                            progressCallBack = { progress, eta, line ->
                                                                 downloadProgress = progress
                                                                 downloadLine = line
                                                                 Timber.i("line: $line")
@@ -202,9 +211,15 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxWidth()
                                         .height(56.dp)
                                 ) {
-                                    Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
+                                    Icon(
+                                        painter = painterResource(R.drawable.baseline_download_24),
+                                        contentDescription = "Download"
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Download", style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = "Download",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
@@ -213,13 +228,14 @@ class MainActivity : ComponentActivity() {
                                         youtubeDl?.destroyProcessById(
                                             processId
                                         )
-                                    },shape = RoundedCornerShape(12.dp),
+                                    }, shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(56.dp)){
+                                        .height(56.dp)
+                                ) {
                                     Text("Cancel")
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
