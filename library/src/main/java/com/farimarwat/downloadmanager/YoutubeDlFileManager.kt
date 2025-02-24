@@ -3,7 +3,6 @@ package com.farimarwat.downloadmanager
 import android.content.Context
 import android.os.Build
 import com.farimarwat.downloadmanager.model.YoutubeDlArtifact
-import com.farimarwat.ffmpeg.FFmpeg
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLUpdater
 import kotlinx.coroutines.*
@@ -34,6 +33,8 @@ object YoutubeDlFileManager {
 
     /** Directory where downloaded files will be stored. */
     var DOWNLOAD_DIR: File? = null
+
+    var CACHE_DIR:File? = null
 
     /** Retrieves the primary supported architecture of the device. */
     val arch: String
@@ -66,6 +67,7 @@ object YoutubeDlFileManager {
     suspend fun isReady(context: Context): Boolean {
         return withContext(Dispatchers.IO) {
             DOWNLOAD_DIR = context.filesDir
+            CACHE_DIR = context.cacheDir
             baseUrls.add(YoutubeDLUpdater.getYtdDownloadUrl(YoutubeDL.UpdateChannel.STABLE))
             baseUrls.all { url ->
                 val fileUrl = url.replace("{arch}", arch)
@@ -90,18 +92,29 @@ object YoutubeDlFileManager {
             for (url in baseUrls) {
                 val fileUrl = url.replace("{arch}", arch)
                 val fileName = fileUrl.substringAfterLast('/')
-                val file = File(DOWNLOAD_DIR, fileName)
+                val tempFile = File(CACHE_DIR, fileName)
+                val destinationFile = File(DOWNLOAD_DIR,fileName)
                 Timber.i("Downloading $fileName for $arch")
-                if (!file.exists()) {
-                    val success = downloadFile(fileUrl, file)
+                if (!destinationFile.exists()) {
+                    val success = downloadFile(fileUrl, tempFile)
                     if (!success) {
                         downloadFailed = true
                         downloadError = Exception("Download failed for $fileName")
                         break
                     }
                 }
+
+                copyFile(tempFile,destinationFile)
             }
             callback(!downloadFailed, downloadError)
+        }
+    }
+
+    private fun copyFile(source: File, destinationFile: File) {
+        source.inputStream().use { input ->
+            destinationFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
         }
     }
 
