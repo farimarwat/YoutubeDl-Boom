@@ -199,14 +199,14 @@ val job = download(
 - **`onError`**: Triggered if an error occurs during the download, returning the error message.
 
 
-### Version History
-- 1.0.6
-  Fixed: failed to initialize <a href='https://github.com/farimarwat/YoutubeDl-Boom/issues/4'>#4</a>
-
 ### 📝  Additional Notes:
 - The download process executes **asynchronously in the background** using Kotlin Coroutines (`Dispatchers.IO`).
 - `yt-dlp` generates detailed logs in `outputLine`, which can be parsed for specific information.
 - The function ensures proper error handling and prevents duplicate Process IDs.
+
+  ### Version History
+- 1.0.6
+  Fixed: failed to initialize <a href='https://github.com/farimarwat/YoutubeDl-Boom/issues/4'>#4</a>
 
 ## About Me  
 
