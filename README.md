@@ -47,6 +47,12 @@ dependencies {
 }
 ```
 
+## Proguard Rules
+```
+-keep class com.farimarwat.** { *; }
+-keep class org.apache.commons.compress.archivers.zip.** { *; }
+```
+
 #  📥 YoutubeDl Setup Guide  
 
 ## 🔹 Overview  
