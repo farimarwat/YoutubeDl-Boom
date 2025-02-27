@@ -44,4 +44,47 @@ data class VideoInfo @JsonCreator constructor(
     @JsonProperty("manifest_url") val manifestUrl: String? = null,
     @JsonProperty("url") val url: String? = null,
     @JsonProperty("is_live") val isLive: Boolean? = null
-)
+){
+    override fun toString(): String {
+        return """
+            VideoInfo(
+                id = $id,
+                fulltitle = $fulltitle,
+                title = $title,
+                uploadDate = $uploadDate,
+                displayId = $displayId,
+                duration = $duration,
+                description = $description,
+                thumbnail = $thumbnail,
+                license = $license,
+                extractor = $extractor,
+                extractorKey = $extractorKey,
+                viewCount = $viewCount,
+                likeCount = $likeCount,
+                dislikeCount = $dislikeCount,
+                repostCount = $repostCount,
+                averageRating = $averageRating,
+                uploaderId = $uploaderId,
+                uploader = $uploader,
+                playerUrl = $playerUrl,
+                webpageUrl = $webpageUrl,
+                webpageUrlBasename = $webpageUrlBasename,
+                resolution = $resolution,
+                width = $width,
+                height = $height,
+                format = $format,
+                formatId = $formatId,
+                ext = $ext,
+                fileSize = $fileSize,
+                fileSizeApproximate = $fileSizeApproximate,
+                httpHeaders = $httpHeaders,
+                categories = $categories,
+                tags = $tags,
+                thumbnails = $thumbnails,
+                manifestUrl = $manifestUrl,
+                url = $url,
+                isLive = $isLive
+            )
+        """.trimIndent()
+    }
+}

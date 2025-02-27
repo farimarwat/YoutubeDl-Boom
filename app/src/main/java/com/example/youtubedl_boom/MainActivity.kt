@@ -128,11 +128,17 @@ class MainActivity : ComponentActivity() {
                                         scope.launch {
                                             showScanProgress = true
                                             youtubeDl?.let {
+                                                val request = YoutubeDLRequest(url)
+                                                request.addOption("-f","best[height<=480]/best")
                                                 it.getInfo(
-                                                    url = url,
+                                                    request = request,
                                                     onSuccess = {
                                                         videoInfo = it
                                                         showScanProgress = false
+
+                                                       for(item in it.formats!!){
+                                                           Timber.i("VideoInfo: ${item}")
+                                                       }
                                                     },
                                                     onError = { Timber.i(it) }
                                                 )

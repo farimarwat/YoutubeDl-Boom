@@ -152,6 +152,19 @@ object YoutubeDL {
         return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
     }
 
+    fun getInfo(
+        url: String,
+        onSuccess: (VideoInfo) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ) {
+        val request = YoutubeDLRequest(url)
+        getInfo(
+            request = request,
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
     /**
      * Retrieves video information from the given URL.
      *
@@ -160,7 +173,7 @@ object YoutubeDL {
      * @param onError Callback function invoked with an error [Throwable] if retrieval fails.
      */
     fun getInfo(
-        url: String,
+        request: YoutubeDLRequest,
         onSuccess: (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ) {
@@ -170,7 +183,6 @@ object YoutubeDL {
             onError(throwable)
         }
         CoroutineScope(Dispatchers.IO + exception).launch {
-            val request = YoutubeDLRequest(url)
             request.addOption("--dump-json")
             try {
                 assertInit()

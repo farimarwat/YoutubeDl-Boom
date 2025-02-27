@@ -23,4 +23,28 @@ data class VideoFormat @JsonCreator constructor(
     @JsonProperty("url") val url: String? = null,
     @JsonProperty("manifest_url") val manifestUrl: String? = null,
     @JsonProperty("http_headers") val httpHeaders: Map<String, String>? = null,
-)
+){
+    override fun toString(): String {
+        return """
+        VideoFormat(
+            asr = $asr,
+            tbr = $tbr,
+            abr = $abr,
+            format = $format,
+            formatId = $formatId,
+            formatNote = $formatNote,
+            ext = $ext,
+            preference = $preference,
+            vcodec = $vcodec,
+            acodec = $acodec,
+            width = $width,
+            height = $height,
+            fileSize = $fileSize,
+            fileSizeApproximate = $fileSizeApproximate,
+            fps = $fps,
+            url = $url,
+            manifestUrl = $manifestUrl
+        )
+    """.trimIndent()
+    }
+}
