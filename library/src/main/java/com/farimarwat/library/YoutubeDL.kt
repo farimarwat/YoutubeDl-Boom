@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import org.apache.commons.io.FileUtils
-import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
@@ -38,7 +37,7 @@ object YoutubeDL {
     private var ENV_SSL_CERT_FILE: String? = null
     private var ENV_PYTHONHOME: String? = null
     private var TMPDIR: String = ""
-    private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
+    private val downloadIdProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
     fun init(
         appContext: Context,
@@ -273,7 +272,7 @@ object YoutubeDL {
             try {
                 val processId = if (pId.isNullOrEmpty()) UUID.randomUUID().toString() else pId
                 assertInit()
-                if (idProcessMap.containsKey(processId)) {
+                if (downloadIdProcessMap.containsKey(processId)) {
                     throw YoutubeDLException("Process ID already exists")
                 }
 
@@ -313,7 +312,7 @@ object YoutubeDL {
                 withContext(Dispatchers.Main) {
                     onStartProcess(processId)
                 }
-                idProcessMap[processId] = process
+                downloadIdProcessMap[processId] = process
                 streamProcessExtractor = StreamProcessExtractor()
                 streamGobbler = StreamGobbler()
                 val stdOutProcessor = streamProcessExtractor?.readStream(
@@ -341,7 +340,7 @@ object YoutubeDL {
                     process.waitFor()
                 } catch (e: InterruptedException) {
                     process.destroy()
-                    idProcessMap.remove(processId)
+                    downloadIdProcessMap.remove(processId)
                     throw e
                 }
 
@@ -349,17 +348,17 @@ object YoutubeDL {
                 val err = errBuffer.toString()
 
                 if (exitCode > 0) {
-                    if (!idProcessMap.containsKey(processId)) {
+                    if (!downloadIdProcessMap.containsKey(processId)) {
                         val canceledException = CanceledException()
                         throw canceledException
                     }
                     if (!ignoreErrors(request, out)) {
-                        idProcessMap.remove(processId)
+                        downloadIdProcessMap.remove(processId)
                         val youtubeDLException = YoutubeDLException(err)
                         throw youtubeDLException
                     }
                 }
-                idProcessMap.remove(processId)
+                downloadIdProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
                 withContext(Dispatchers.Main) {
@@ -382,8 +381,8 @@ object YoutubeDL {
      * @return `true` if the process was successfully destroyed, `false` if the process was not found or could not be terminated.
      */
     fun destroyProcessById(id: String): Boolean {
-        if (idProcessMap.containsKey(id)) {
-            val pythonProcess = idProcessMap[id]
+        if (downloadIdProcessMap.containsKey(id)) {
+            val pythonProcess = downloadIdProcessMap[id]
             pythonProcess?.let { pythonProcess.getProcessId().getChildProcessId().killProcess() }
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -391,12 +390,25 @@ object YoutubeDL {
             }
             if (alive) {
                 pythonProcess!!.destroy()
-                idProcessMap.remove(id)
+                downloadIdProcessMap.remove(id)
                 return true
             }
         }
         return false
     }
+
+    /**
+     * Returns the count of downloads that are currently in progress.
+     *
+     * This function checks the size of the `downloadIdProcessMap`, which keeps track
+     * of active downloads, and returns the total number of ongoing downloads.
+     *
+     * @return The number of downloads currently in progress.
+     */
+    fun getInProgressDownloadsCount(): Int {
+        return downloadIdProcessMap.size
+    }
+
 
     @Throws(YoutubeDLException::class)
     suspend fun updateYoutubeDL(
