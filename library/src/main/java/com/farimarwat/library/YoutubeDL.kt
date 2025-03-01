@@ -100,7 +100,7 @@ object YoutubeDL {
         serviceConnection = object: ServiceConnection{
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 val myBinder = binder as YoutubeDlService.LocalBinder
-                CoroutineScope(Dispatchers.Main).launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     myBinder.getService().youtubeDl.collect{ ytdl ->
                         if(ytdl != null){
                             Timber.i("Youtubedl Object obtained")
