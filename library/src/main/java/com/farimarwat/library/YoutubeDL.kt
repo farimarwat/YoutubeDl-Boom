@@ -1,7 +1,14 @@
 package com.farimarwat.library
 
+import android.app.Activity
+import android.app.Activity.BIND_AUTO_CREATE
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Build
+import android.os.IBinder
+import androidx.lifecycle.lifecycleScope
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
@@ -10,6 +17,7 @@ import com.farimarwat.common.utils.ZipUtils.unzip
 import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.farimarwat.ffmpeg.FfmpegStreamExtractor
+import com.farimarwat.library.service.YoutubeDlService
 import com.yausername.youtubedl_android.getChildProcessId
 import com.yausername.youtubedl_android.getProcessId
 import com.yausername.youtubedl_android.killProcess
@@ -17,10 +25,15 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import org.apache.commons.io.FileUtils
+import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
@@ -38,6 +51,10 @@ object YoutubeDL {
     private var ENV_PYTHONHOME: String? = null
     private var TMPDIR: String = ""
     private val downloadIdProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
+    private var _youtubedl:MutableStateFlow<YoutubeDL?> = MutableStateFlow(null)
+    val youtubedl = _youtubedl.asStateFlow()
+    private lateinit var serviceConnection:ServiceConnection
+
 
     fun init(
         appContext: Context,
@@ -77,6 +94,37 @@ object YoutubeDL {
                 }
             }
         }
+    }
+
+    fun initWithService(context:Activity,manager:YoutubeDlFileManager):StateFlow<YoutubeDL?>{
+        serviceConnection = object: ServiceConnection{
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                val myBinder = binder as YoutubeDlService.LocalBinder
+                CoroutineScope(Dispatchers.Main).launch {
+                    myBinder.getService().youtubeDl.collect{ ytdl ->
+                        if(ytdl != null){
+                            Timber.i("Youtubedl Object obtained")
+                            _youtubedl.value = ytdl
+                            context.unbindService(serviceConnection)
+                        }
+                    }
+                }
+            }
+            override fun onServiceDisconnected(p0: ComponentName?) {
+                Timber.i("Service disconnected")
+            }
+        }
+        val intent = Intent(context,YoutubeDlService::class.java).apply {
+            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_FFMPEG,manager.isFfmpegEnabled())
+            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_ARIA2C,manager.isAria2cEnabled())
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+        context.bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+        return youtubedl
     }
 
     private fun performInit(appContext: Context) {

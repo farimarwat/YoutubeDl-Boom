@@ -31,6 +31,7 @@ object YoutubeDlFileManager {
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so"
     )
 
+
     /** Directory where downloaded files will be stored. */
     var DOWNLOAD_DIR: File? = null
 
@@ -185,7 +186,9 @@ object YoutubeDlFileManager {
          * @return `Builder` instance for chaining.
          */
         fun withFFMpeg(): Builder {
-            baseUrls.add(YoutubeDlArtifact.FFMPEG)
+            if(!baseUrls.contains(YoutubeDlArtifact.FFMPEG)){
+                baseUrls.add(YoutubeDlArtifact.FFMPEG)
+            }
             withFfmpeg = true
             return this
         }
@@ -196,7 +199,9 @@ object YoutubeDlFileManager {
          * @return `Builder` instance for chaining.
          */
         fun withAria2c(): Builder {
-            baseUrls.add(YoutubeDlArtifact.ARIA2C)
+            if(!baseUrls.contains(YoutubeDlArtifact.ARIA2C)){
+                baseUrls.add(YoutubeDlArtifact.ARIA2C)
+            }
             withAria2c = true
             return this
         }

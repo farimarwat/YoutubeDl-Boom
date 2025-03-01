@@ -64,35 +64,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
         var youtubeDl: YoutubeDL? = null
-        var connection:ServiceConnection? = null
 
-        connection = object: ServiceConnection{
-            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                val myBinder = binder as YoutubeDlService.LocalBinder
-                lifecycleScope.launch {
-                    myBinder.getService().youtubeDl.collect{ ytdl ->
-                        if(ytdl != null){
-                            Timber.i("Youtubedl Object obtained")
-                            youtubeDl = ytdl
-                            connection?.let { unbindService(it) }
-                        }
-                    }
-                }
-            }
-            override fun onServiceDisconnected(p0: ComponentName?) {
-                Timber.i("Service disconnected")
+        lifecycleScope.launch {
+            val manager = YoutubeDlFileManager.Builder()
+                .withAria2c()
+                .build()
+            YoutubeDL.initWithService(this@MainActivity,manager).collect{
+                youtubeDl = it
             }
         }
-
-        val intent = Intent(this,YoutubeDlService::class.java)
-        // Start the service as a foreground service
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        bindService(intent,connection, BIND_AUTO_CREATE)
-
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }

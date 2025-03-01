@@ -28,6 +28,9 @@ class YoutubeDlService:Service() {
 
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
+    var withFfmpeg = false
+    var withAria2c = false
+
     private var _youtubeDl:MutableStateFlow<YoutubeDL?> = MutableStateFlow(null)
     var youtubeDl = _youtubeDl.asStateFlow()
     override fun onCreate() {
@@ -36,6 +39,8 @@ class YoutubeDlService:Service() {
     }
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        withFfmpeg = intent?.getBooleanExtra(EXTRA_PARAM_WITH_FFMPEG,false) ?: false
+        withAria2c = intent?.getBooleanExtra(EXTRA_PARAM_WITH_ARIA2C,false) ?: false
          super.onStartCommand(intent, flags, startId)
         ServiceCompat.startForeground(
             this,
@@ -81,8 +86,10 @@ class YoutubeDlService:Service() {
 
     fun initializeYoutubeDl(){
         val manager = YoutubeDlFileManager
-            .Builder()
-            .withFFMpeg()
+            .Builder().apply {
+                if(withFfmpeg) withFFMpeg()
+                if(withAria2c) withAria2c()
+            }
             .build()
 
         YoutubeDL.getInstance().init(
@@ -98,5 +105,10 @@ class YoutubeDlService:Service() {
                 stopSelf()
             }
         )
+    }
+
+    companion object{
+        val EXTRA_PARAM_WITH_FFMPEG = "with_ffmpeg"
+        val EXTRA_PARAM_WITH_ARIA2C = "with_aria2c"
     }
 }
