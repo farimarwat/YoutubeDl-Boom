@@ -1,6 +1,11 @@
 package com.example.youtubedl_boom
 
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -42,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.downloadmanager.YoutubeDlFileManager
@@ -49,6 +55,7 @@ import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLRequest
 import com.farimarwat.library.YoutubeDLResponse
+import com.farimarwat.library.service.YoutubeDlService
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -57,35 +64,41 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
         var youtubeDl: YoutubeDL? = null
+        var connection:ServiceConnection? = null
+
+        connection = object: ServiceConnection{
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                val myBinder = binder as YoutubeDlService.LocalBinder
+                lifecycleScope.launch {
+                    myBinder.getService().youtubeDl.collect{ ytdl ->
+                        if(ytdl != null){
+                            Timber.i("Youtubedl Object obtained")
+                            youtubeDl = ytdl
+                            connection?.let { unbindService(it) }
+                        }
+                    }
+                }
+            }
+            override fun onServiceDisconnected(p0: ComponentName?) {
+                Timber.i("Service disconnected")
+            }
+        }
+
+        val intent = Intent(this,YoutubeDlService::class.java)
+        // Start the service as a foreground service
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        bindService(intent,connection, BIND_AUTO_CREATE)
+
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
             var youtubeDLResponse: YoutubeDLResponse? = null
             var processId = ""
             val scope = rememberCoroutineScope()
-
-
-            LaunchedEffect(Unit) {
-                val manager = YoutubeDlFileManager
-                    .Builder()
-                    .withFFMpeg()
-                    .build()
-
-                val job = YoutubeDL.getInstance().init(
-                    appContext = this@MainActivity,
-                    fileManager = manager,
-                    onSuccess = {
-                        Timber.i("Initialized successfully")
-                        youtubeDl = it
-                    },
-                    onError = {
-                        Timber.e(it)
-                    }
-                )
-            }
-
-
-
 
             YoutubeDlBoomTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
