@@ -11,6 +11,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Collections
 
 /**
  * `YoutubeDlFileManager` is responsible for dynamically managing and downloading the required
@@ -27,9 +28,9 @@ object YoutubeDlFileManager {
     private var mWithAria2c = false
 
     /** List of base URLs for downloading libraries, with `{arch}` placeholder for architecture. */
-    private val baseUrls = mutableListOf(
+    private val baseUrls = Collections.synchronizedList(mutableListOf(
         "https://raw.githubusercontent.com/yausername/youtubedl-android/refs/heads/master/library/src/main/jniLibs/{arch}/libpython.zip.so"
-    )
+    ))
 
 
     /** Directory where downloaded files will be stored. */
@@ -67,9 +68,12 @@ object YoutubeDlFileManager {
      */
     suspend fun isReady(context: Context): Boolean {
         return withContext(Dispatchers.IO) {
-            DOWNLOAD_DIR = context.filesDir
-            CACHE_DIR = context.cacheDir
-            baseUrls.add(YoutubeDLUpdater.getYtdDownloadUrl(YoutubeDL.UpdateChannel.STABLE))
+            val youtubeDlDownloadUrl = YoutubeDLUpdater.getYtdDownloadUrl(YoutubeDL.UpdateChannel.STABLE)
+            synchronized(this@YoutubeDlFileManager){
+                DOWNLOAD_DIR = context.filesDir
+                CACHE_DIR = context.cacheDir
+                baseUrls.add(youtubeDlDownloadUrl)
+            }
             baseUrls.all { url ->
                 val fileUrl = url.replace("{arch}", arch)
                 val fileName = fileUrl.substringAfterLast('/')
@@ -186,10 +190,12 @@ object YoutubeDlFileManager {
          * @return `Builder` instance for chaining.
          */
         fun withFFMpeg(): Builder {
-            if(!baseUrls.contains(YoutubeDlArtifact.FFMPEG)){
-                baseUrls.add(YoutubeDlArtifact.FFMPEG)
+            synchronized(this){
+                if(!baseUrls.contains(YoutubeDlArtifact.FFMPEG)){
+                    baseUrls.add(YoutubeDlArtifact.FFMPEG)
+                }
+                withFfmpeg = true
             }
-            withFfmpeg = true
             return this
         }
 
@@ -199,10 +205,12 @@ object YoutubeDlFileManager {
          * @return `Builder` instance for chaining.
          */
         fun withAria2c(): Builder {
-            if(!baseUrls.contains(YoutubeDlArtifact.ARIA2C)){
-                baseUrls.add(YoutubeDlArtifact.ARIA2C)
+            synchronized(this){
+                if(!baseUrls.contains(YoutubeDlArtifact.ARIA2C)){
+                    baseUrls.add(YoutubeDlArtifact.ARIA2C)
+                }
+                withAria2c = true
             }
-            withAria2c = true
             return this
         }
 

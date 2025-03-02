@@ -12,7 +12,7 @@ object StoragePermissionHelper {
 
     val downloadDir: File = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        "youtubedl-boom"
+        "youtubeDl-boom"
     ).apply {
         if (!exists()) mkdirs()
     }

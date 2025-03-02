@@ -66,12 +66,17 @@ class MainActivity : ComponentActivity() {
         var youtubeDl: YoutubeDL? = null
 
         lifecycleScope.launch {
-            val manager = YoutubeDlFileManager.Builder()
-                .withAria2c()
-                .build()
-            YoutubeDL.initWithService(this@MainActivity,manager).collect{
-                youtubeDl = it
-            }
+
+            YoutubeDL.initWithService(
+                this@MainActivity,
+                withFfmpeg = true,
+                onSuccess = {
+                    youtubeDl = it
+                },
+                onError = {
+                    Timber.e(it)
+                }
+            )
         }
         enableEdgeToEdge()
         setContent {
@@ -122,16 +127,16 @@ class MainActivity : ComponentActivity() {
                                             showScanProgress = true
                                             youtubeDl?.let {
                                                 val request = YoutubeDLRequest(url)
-                                                request.addOption("-f","best[height<=480]/best")
+                                                request.addOption("-f", "best[height<=480]/best")
                                                 it.getInfo(
                                                     request = request,
                                                     onSuccess = {
                                                         videoInfo = it
                                                         showScanProgress = false
 
-                                                       for(item in it.formats!!){
-                                                           Timber.i("VideoInfo: ${item}")
-                                                       }
+                                                        for (item in it.formats!!) {
+                                                            Timber.i("VideoInfo: ${item}")
+                                                        }
                                                     },
                                                     onError = { Timber.i(it) }
                                                 )

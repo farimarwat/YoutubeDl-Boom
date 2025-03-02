@@ -52,7 +52,7 @@ object Aria2c {
         SharedPrefsHelper.update(appContext, aria2cLibVersion, version)
     }
 
-    private const val baseName = "youtubedl-android"
+    private const val baseName = "youtubeDl-android"
     private const val packagesRoot = "packages"
     private const val aria2cDirName = "aria2c"
     private const val aria2cLibName = "libaria2c.zip.so"

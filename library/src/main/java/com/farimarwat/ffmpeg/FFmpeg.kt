@@ -53,7 +53,7 @@ object FFmpeg {
 
     @JvmStatic
     fun getInstance() = this
-    private const val baseName = "youtubedl-android"
+    private const val baseName = "youtubeDl-android"
     private const val packagesRoot = "packages"
     private const val ffmegDirName = "ffmpeg"
     private const val ffmpegLibName = "libffmpeg.zip.so"

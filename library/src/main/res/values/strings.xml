@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="downloading_files">Preparing files</string>
+    <string name="preparing_files">Preparing files</string>
 </resources>

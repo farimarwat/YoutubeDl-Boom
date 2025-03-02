@@ -62,7 +62,7 @@ class YoutubeDlService:Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, "download_channel")
-            .setContentTitle(application.getString(R.string.downloading_files))
+            .setContentTitle(application.getString(R.string.preparing_files))
             .setSmallIcon(R.drawable.baseline_download_for_offline_24)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

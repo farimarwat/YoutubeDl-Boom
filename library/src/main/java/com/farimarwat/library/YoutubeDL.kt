@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
-import androidx.lifecycle.lifecycleScope
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
@@ -25,7 +24,6 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,11 +49,23 @@ object YoutubeDL {
     private var ENV_PYTHONHOME: String? = null
     private var TMPDIR: String = ""
     private val downloadIdProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
-    private var _youtubedl:MutableStateFlow<YoutubeDL?> = MutableStateFlow(null)
-    val youtubedl = _youtubedl.asStateFlow()
-    private lateinit var serviceConnection:ServiceConnection
+    private var serviceConnection:ServiceConnection? = null
+    var isBound = false
+    private var isInitializing = false
 
-
+    /**
+     * Initializes the YoutubeDL library asynchronously.
+     *
+     * This function checks if the required library files are ready. If they are,
+     * it initializes YoutubeDL, FFmpeg, and Aria2c if enabled. If the files are not ready,
+     * it attempts to download them before proceeding with initialization.
+     *
+     * @param appContext The application context used for initialization.
+     * @param fileManager The file manager responsible for handling YoutubeDL library files. Defaults to [YoutubeDlFileManager].
+     * @param onSuccess Callback invoked on successful initialization with the initialized [YoutubeDL] instance.
+     * @param onError Callback invoked if an error occurs during initialization.
+     * @return A [Job] representing the initialization coroutine.
+     */
     fun init(
         appContext: Context,
         fileManager: YoutubeDlFileManager = YoutubeDlFileManager,
@@ -96,35 +106,66 @@ object YoutubeDL {
         }
     }
 
-    fun initWithService(context:Activity,manager:YoutubeDlFileManager):StateFlow<YoutubeDL?>{
+
+    /**
+     * Safely initializes YoutubeDL using a foreground service.
+     *
+     * This method binds to a foreground service to handle initialization safely, avoiding corruption
+     * issues that may arise from direct initialization. The service handles initialization in the background
+     * and returns the initialized [YoutubeDL] instance through a callback.
+     *
+     * @param context The activity context required to bind to the service.
+     * @param withFfmpeg If true, initializes FFmpeg support.
+     * @param withAria2c If true, initializes Aria2c support.
+     * @param onSuccess Callback invoked when initialization completes successfully with the [YoutubeDL] instance.
+     * @param onError Callback invoked if an error occurs during initialization.
+     */
+    fun initWithService(
+        context:Activity,
+        withFfmpeg:Boolean = false,
+        withAria2c:Boolean = false,
+        onSuccess:(YoutubeDL)->Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ){
+        val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+            onError(throwable)
+        }
+        if(isInitializing) return
+        isInitializing = true
         serviceConnection = object: ServiceConnection{
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                val myBinder = binder as YoutubeDlService.LocalBinder
-                CoroutineScope(Dispatchers.IO).launch {
+                CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
+                    val myBinder = binder as YoutubeDlService.LocalBinder
                     myBinder.getService().youtubeDl.collect{ ytdl ->
                         if(ytdl != null){
-                            Timber.i("Youtubedl Object obtained")
-                            _youtubedl.value = ytdl
-                            context.unbindService(serviceConnection)
+                            onSuccess(ytdl)
+                            if(isBound){
+                                serviceConnection?.let { context.unbindService(it) }
+                                isBound = false
+                                serviceConnection = null
+                            }
+                            isInitializing = false
                         }
                     }
                 }
             }
             override fun onServiceDisconnected(p0: ComponentName?) {
-                Timber.i("Service disconnected")
+                isBound = false
+                serviceConnection = null
             }
         }
         val intent = Intent(context,YoutubeDlService::class.java).apply {
-            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_FFMPEG,manager.isFfmpegEnabled())
-            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_ARIA2C,manager.isAria2cEnabled())
+            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_FFMPEG,withFfmpeg)
+            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_ARIA2C,withAria2c)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
         } else {
             context.startService(intent)
         }
-        context.bindService(intent, serviceConnection, BIND_AUTO_CREATE)
-        return youtubedl
+        serviceConnection?.let { connection ->
+            isBound = context.bindService(intent, connection, BIND_AUTO_CREATE)
+        }
     }
 
     private fun performInit(appContext: Context) {
@@ -510,7 +551,7 @@ object YoutubeDL {
     }
 
 
-    const val baseName = "youtubedl-android"
+    const val baseName = "youtubeDl-android"
     private const val packagesRoot = "packages"
     private const val pythonBinName = "libpython.so"
     private const val pythonLibName = "libpython.zip.so"
