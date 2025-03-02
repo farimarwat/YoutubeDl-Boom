@@ -43,7 +43,7 @@ To use `youtubedl-boom` in your Android project, add the following dependency in
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.7")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.14")
 }
 ```
 
@@ -90,6 +90,10 @@ val manager = YoutubeDlFileManager
 ---
 
 ## 🚀 Step 3: Initialize YouTubeDL  
+
+There are 2 ways to initialize with and without foreground service (to avoid download inturreption by forece-to-kill app)
+
+### Without Service
 Once the manager is set up, we initialize **YouTubeDL**.  
 
 ```kotlin
@@ -105,6 +109,21 @@ val job = YoutubeDL.getInstance().init(
 )
 ```
 
+### With Service
+```kotlin
+ YoutubeDL.initWithService(
+            this@MainActivity,  //provide activity context
+            withFfmpeg = true,  //Default is false
+            withAria2c = true, //Default is false
+            onSuccess = {
+                youtubeDl = it  //YoutubeDl object is obtained successfully
+            },
+            onError = {
+                Timber.e(it)
+            }
+        )
+```
+
 ### ✅ Explanation:  
 - `fileManager = manager`: **Downloads required files. Downloads are done only one time when app is first executed.**  
 - `youtubeDl = it`: Stores the initialized **YouTubeDL instance** for future use.  
@@ -116,6 +135,7 @@ val job = YoutubeDL.getInstance().init(
 ✔️ **Step 1:** Create a global variable for `YoutubeDL`.  
 ✔️ **Step 2:** Build a **YoutubeDlFileManager** (optional FFmpeg & Aria2c).  
 ✔️ **Step 3:** Initialize `YoutubeDL` and download required dependencies on first install.  
+
 
 
 ### 🔹 Example: Retrieving Video Information  
@@ -211,7 +231,12 @@ val job = download(
 - The function ensures proper error handling and prevents duplicate Process IDs.
 
   ### Version History
-- 1.0.6
+- 1.0.14:
+  
+  Foreground service support added to download files
+  
+- 1.0.6:
+  
   Fixed: failed to initialize <a href='https://github.com/farimarwat/YoutubeDl-Boom/issues/4'>#4</a>
 
 ## About Me  
