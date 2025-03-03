@@ -9,6 +9,7 @@ import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.InterruptedIOException
 import java.io.Reader
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
@@ -55,9 +56,11 @@ internal class StreamProcessExtractor {
         } catch(e: OutOfMemoryError){
             Timber.i(e)
         }
+        catch (e:InterruptedIOException){
+            Timber.i(e)
+        }
         catch (e: Exception) {
             Timber.i("failed to read stream", e)
-            throw e // Or handle it appropriately
         }
     }
 
