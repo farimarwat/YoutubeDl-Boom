@@ -43,7 +43,7 @@ To use `youtubedl-boom` in your Android project, add the following dependency in
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.15")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.16")
 }
 ```
 
@@ -231,6 +231,10 @@ val job = download(
 - The function ensures proper error handling and prevents duplicate Process IDs.
 
   ### Version History
+- 1.0.16
+
+  Fix InterruptedIOException crash
+  
 - 1.0.15
 
     Fix OutOfMemoryError
