@@ -108,63 +108,82 @@ object YoutubeDL {
 
 
     /**
-     * Safely initializes YoutubeDL using a foreground service.
+     * Initializes the `YoutubeDL` instance, optionally including FFmpeg and Aria2c support.
      *
-     * This method binds to a foreground service to handle initialization safely, avoiding corruption
-     * issues that may arise from direct initialization. The service handles initialization in the background
-     * and returns the initialized [YoutubeDL] instance through a callback.
+     * This function first checks if the `YoutubeDL` files are ready. If so, it initializes them
+     * along with the optional dependencies (FFmpeg and Aria2c). Otherwise, it attempts to start
+     * a bound service to retrieve an instance of `YoutubeDL`.
      *
-     * @param context The activity context required to bind to the service.
-     * @param withFfmpeg If true, initializes FFmpeg support.
-     * @param withAria2c If true, initializes Aria2c support.
-     * @param onSuccess Callback invoked when initialization completes successfully with the [YoutubeDL] instance.
+     * @param context The `Activity` context required for initialization.
+     * @param withFfmpeg Whether to initialize FFmpeg along with `YoutubeDL`. Default is `false`.
+     * @param withAria2c Whether to initialize Aria2c along with `YoutubeDL`. Default is `false`.
+     * @param onSuccess Callback invoked when `YoutubeDL` is successfully initialized.
      * @param onError Callback invoked if an error occurs during initialization.
+     * @return A `Job` representing the coroutine performing the initialization.
      */
+
     fun initWithService(
         context:Activity,
         withFfmpeg:Boolean = false,
         withAria2c:Boolean = false,
         onSuccess:(YoutubeDL)->Unit = {},
         onError: (Throwable) -> Unit = {}
-    ){
+    ):Job{
         val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
             onError(throwable)
         }
-        if(isInitializing) return
-        isInitializing = true
-        serviceConnection = object: ServiceConnection{
-            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-                CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
-                    val myBinder = binder as YoutubeDlService.LocalBinder
-                    myBinder.getService().youtubeDl.collect{ ytdl ->
-                        if(ytdl != null){
-                            onSuccess(ytdl)
-                            if(isBound){
-                                serviceConnection?.let { context.unbindService(it) }
-                                isBound = false
-                                serviceConnection = null
+        val job = Job()
+        val scope = CoroutineScope(Dispatchers.IO + job + exceptionHandler)
+        return scope.launch {
+            if (YoutubeDlFileManager.isReady(context)) {
+                performInit(context)
+                if (withFfmpeg) {
+                    FFmpeg.init(context)
+                }
+                if (withAria2c) {
+                    Aria2c.init(context)
+                }
+                withContext(Dispatchers.Main) {
+                    onSuccess(this@YoutubeDL)
+                }
+            } else {
+                if(isInitializing) return@launch
+                isInitializing = true
+                serviceConnection = object: ServiceConnection{
+                    override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                        CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
+                            val myBinder = binder as YoutubeDlService.LocalBinder
+                            myBinder.getService().youtubeDl.collect{ ytdl ->
+                                if(ytdl != null){
+                                    onSuccess(ytdl)
+                                    if(isBound){
+                                        serviceConnection?.let { context.unbindService(it) }
+                                        isBound = false
+                                        serviceConnection = null
+                                    }
+                                    isInitializing = false
+                                }
                             }
-                            isInitializing = false
                         }
                     }
+                    override fun onServiceDisconnected(p0: ComponentName?) {
+                        isBound = false
+                        serviceConnection = null
+                    }
+                }
+                val intent = Intent(context,YoutubeDlService::class.java).apply {
+                    putExtra(YoutubeDlService.EXTRA_PARAM_WITH_FFMPEG,withFfmpeg)
+                    putExtra(YoutubeDlService.EXTRA_PARAM_WITH_ARIA2C,withAria2c)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+                serviceConnection?.let { connection ->
+                    isBound = context.bindService(intent, connection, BIND_AUTO_CREATE)
                 }
             }
-            override fun onServiceDisconnected(p0: ComponentName?) {
-                isBound = false
-                serviceConnection = null
-            }
-        }
-        val intent = Intent(context,YoutubeDlService::class.java).apply {
-            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_FFMPEG,withFfmpeg)
-            putExtra(YoutubeDlService.EXTRA_PARAM_WITH_ARIA2C,withAria2c)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-        serviceConnection?.let { connection ->
-            isBound = context.bindService(intent, connection, BIND_AUTO_CREATE)
         }
     }
 

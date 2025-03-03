@@ -72,7 +72,9 @@ object YoutubeDlFileManager {
             synchronized(this@YoutubeDlFileManager){
                 DOWNLOAD_DIR = context.filesDir
                 CACHE_DIR = context.cacheDir
-                baseUrls.add(youtubeDlDownloadUrl)
+                if(!baseUrls.contains(youtubeDlDownloadUrl)){
+                    baseUrls.add(youtubeDlDownloadUrl)
+                }
             }
             baseUrls.all { url ->
                 val fileUrl = url.replace("{arch}", arch)
