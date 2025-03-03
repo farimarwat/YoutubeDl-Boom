@@ -22,40 +22,43 @@ internal class StreamProcessExtractor {
         private const val GROUP_MINUTES = 2
         private const val GROUP_SECONDS = 3
     }
-    private lateinit var buffer: StringBuffer
-    private lateinit var stream: InputStream
-    private var callback: ((Float, Long, String) -> Unit)? = null
     private val p = Pattern.compile("\\[download]\\s+(\\d+\\.\\d)% .* ETA (\\d+):(\\d+)")
     private val pAria2c =
         Pattern.compile("\\[#\\w{6}.*\\((\\d*\\.*\\d+)%\\).*?((\\d+)m)*((\\d+)s)*]")
     private var progress = PERCENT
     private var eta = ETA
 
-    fun readStream(buffer:StringBuffer, stream: InputStream,callback: ((Float, Long, String) -> Unit)? = null):Job = CoroutineScope(Dispatchers.IO).launch {
-        this@StreamProcessExtractor.buffer = buffer
-        this@StreamProcessExtractor.stream = stream
-        this@StreamProcessExtractor.callback = callback
+    fun readStream(
+        buffer: StringBuffer,
+        stream: InputStream,
+        callback: ((Float, Long, String) -> Unit)? = null
+    ): Job = CoroutineScope(Dispatchers.IO).launch {
         try {
-            val input: Reader = InputStreamReader(stream, StandardCharsets.UTF_8)
-            val currentLine = StringBuilder()
-            var nextChar: Int
-            while (input.read().also { nextChar = it } != -1) {
-                buffer.append(nextChar.toChar())
-                if (nextChar == '\r'.code || nextChar == '\n'.code && callback != null) {
-                    val line = currentLine.toString()
-                    processOutputLine(line)
-                    currentLine.setLength(0)
-                    continue
+            InputStreamReader(stream, StandardCharsets.UTF_8).use { input ->
+                val currentLine = StringBuilder()
+                val charArray = CharArray(8192)
+                var charsRead: Int
+                while (input.read(charArray).also { charsRead = it } != -1) {
+                    buffer.append(charArray, 0, charsRead)
+                    for (i in 0 until charsRead) {
+                        val nextChar = charArray[i]
+                        if (nextChar == '\r' || nextChar == '\n') {
+                            val line = currentLine.toString()
+                            callback?.invoke(getProgress(line),getEta(line),line)
+                            currentLine.setLength(0)
+                        } else {
+                            currentLine.append(nextChar)
+                        }
+                    }
                 }
-                currentLine.append(nextChar.toChar())
             }
-        } catch (e: Exception) {
-            Timber.i("failed to read stream", e)
+        } catch(e: OutOfMemoryError){
+            Timber.i(e)
         }
-    }
-
-    private fun processOutputLine(line: String) {
-        callback?.let { it(getProgress(line), getEta(line), line) }
+        catch (e: Exception) {
+            Timber.i("failed to read stream", e)
+            throw e // Or handle it appropriately
+        }
     }
 
     private fun getProgress(line: String): Float {
@@ -87,6 +90,5 @@ internal class StreamProcessExtractor {
         if (seconds == null) return 0 else if (minutes == null) return seconds.toInt()
         return minutes.toInt() * 60 + seconds.toInt()
     }
-
 
 }

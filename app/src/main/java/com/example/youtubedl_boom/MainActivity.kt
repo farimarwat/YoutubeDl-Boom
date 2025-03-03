@@ -60,24 +60,23 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
+    var youtubeDl: YoutubeDL? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
-        var youtubeDl: YoutubeDL? = null
 
-        lifecycleScope.launch {
+        YoutubeDL.initWithService(
+            context = this@MainActivity,
+            withFfmpeg = true,
+            withAria2c = true,
+            onSuccess = {
+                youtubeDl = it
+            },
+            onError = {
+                Timber.e(it)
+            }
+        )
 
-            YoutubeDL.initWithService(
-                this@MainActivity,
-                withFfmpeg = true,
-                onSuccess = {
-                    youtubeDl = it
-                },
-                onError = {
-                    Timber.e(it)
-                }
-            )
-        }
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
