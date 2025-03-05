@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
         YoutubeDL.initWithService(
             context = this@MainActivity,
             withFfmpeg = true,
-            withAria2c = true,
+            withAria2c = false,
             onSuccess = {
                 youtubeDl = it
             },
@@ -132,10 +132,6 @@ class MainActivity : ComponentActivity() {
                                                     onSuccess = {
                                                         videoInfo = it
                                                         showScanProgress = false
-
-                                                        for (item in it.formats!!) {
-                                                            Timber.i("VideoInfo: ${item}")
-                                                        }
                                                     },
                                                     onError = { Timber.i(it) }
                                                 )
@@ -173,6 +169,7 @@ class MainActivity : ComponentActivity() {
                                             if (url.isNotEmpty()) {
                                                 youtubeDl?.let {
                                                     val request = YoutubeDLRequest(url)
+                                                    request.addOption("-f", "best[height<=480]/best")
                                                     request.addOption(
                                                         "-o",
                                                         StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
