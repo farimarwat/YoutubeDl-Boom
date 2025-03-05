@@ -59,7 +59,9 @@ Include this in app's manifest
 <application
  android:extractNativeLibs="true"
 ...
-</application
+>
+...
+</application>
 ```
 
 #  📥 YoutubeDl Setup Guide  
