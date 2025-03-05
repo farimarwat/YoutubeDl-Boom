@@ -53,6 +53,12 @@ dependencies {
 -keep class org.apache.commons.compress.archivers.zip.** { *; }
 ```
 
+## Never Forget
+Include this in <application></application> section of app's manifest
+```
+ android:extractNativeLibs="true"
+```
+
 #  📥 YoutubeDl Setup Guide  
 
 ## 🔹 Overview  
