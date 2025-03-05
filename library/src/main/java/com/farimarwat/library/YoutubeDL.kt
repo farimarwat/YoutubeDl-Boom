@@ -93,6 +93,12 @@ object YoutubeDL {
                 fileManager.downloadLibFiles { success, error ->
                     if (success) {
                         performInit(appContext)
+                        if (fileManager.isFfmpegEnabled()) {
+                            FFmpeg.init(appContext)
+                        }
+                        if (fileManager.isAria2cEnabled()) {
+                            Aria2c.init(appContext)
+                        }
                         withContext(Dispatchers.Main) {
                             onSuccess(this@YoutubeDL)
                         }
@@ -155,6 +161,12 @@ object YoutubeDL {
                             val myBinder = binder as YoutubeDlService.LocalBinder
                             myBinder.getService().youtubeDl.collect{ ytdl ->
                                 if(ytdl != null){
+                                    if (withFfmpeg) {
+                                        FFmpeg.init(context)
+                                    }
+                                    if (withAria2c) {
+                                        Aria2c.init(context)
+                                    }
                                     onSuccess(ytdl)
                                     if(isBound){
                                         serviceConnection?.let { context.unbindService(it) }
