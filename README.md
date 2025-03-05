@@ -48,15 +48,18 @@ dependencies {
 ```
 
 ## Proguard Rules
-```
+```kotlin
 -keep class com.farimarwat.** { *; }
 -keep class org.apache.commons.compress.archivers.zip.** { *; }
 ```
 
 ## Never Forget
-Include this in <application></application> section of app's manifest
-```
+Include this in app's manifest
+```kotlin
+<application
  android:extractNativeLibs="true"
+...
+</application
 ```
 
 #  📥 YoutubeDl Setup Guide  
