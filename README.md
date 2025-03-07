@@ -14,9 +14,6 @@ His contribution to the Android community has made video downloading easier, and
 
 While **youtubedl-android** is an excellent library (huge thanks to JunkFood for their work ❤️), we found some areas that could be improved to make it more efficient and lightweight. Here’s what led us to create **youtubedl-boom**:  
 
-### 1️⃣ App Size Optimization  
-- **Issue:** youtubedl-android packages all necessary files inside the APK, leading to a larger app size.  
-- **Solution:** We now **download only the required files** based on the device’s architecture during first-time initialization.  
 
 ### 2️⃣ FFmpeg Process Issue (Major Problem 🚨)  
 - **Issue:** If a download is started using the FFmpeg downloader and the process is canceled, FFmpeg **keeps running in the background** and continues downloading, causing unnecessary resource consumption.  
@@ -43,7 +40,7 @@ To use `youtubedl-boom` in your Android project, add the following dependency in
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.17")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.18")
 }
 ```
 
@@ -66,10 +63,6 @@ Include this in app's manifest
 
 #  📥 YoutubeDl Setup Guide  
 
-## 🔹 Overview  
-`YoutubeDlFileManager` handles the downloading of required dependencies like **YouTubeDL, FFmpeg, and Aria2c**. This ensures minimal **APK size** by fetching only necessary files during the first install.  
-
----
 
 ## 🛠 Step 1: Declare a Global Variable  
 We create a **nullable** global variable to store the `YoutubeDL` instance.  
@@ -81,71 +74,24 @@ var youtubeDl: YoutubeDL? = null
 - This is usually done in the **App class** or an appropriate singleton.  
 - Initially `null`, it will be set when initialization succeeds.  
 
----
 
-##  ⚡ Step 2: Create the Manager Instance  
-Before initializing YouTubeDL, we need a **manager** to handle dependency downloads.  
 
-```kotlin
-val manager = YoutubeDlFileManager
-    .Builder()
-    .withFFMpeg()  // Optional: Needed for merging split video downloads
-    .withAria2c()  // Optional: For faster downloads
-    .build()
-```
-
-- `.withFFMpeg()`: **Required if downloads are split into chunks** (e.g., video & audio separate).  
-- `.withAria2c()`: **Optional** but can improve download performance.  
-- **Manager ensures necessary files are downloaded on first install.**  
-
----
-
-## 🚀 Step 3: Initialize YouTubeDL  
-
-There are 2 ways to initialize with and without foreground service (to avoid download inturreption by forece-to-kill app)
-
-### Without Service
-Once the manager is set up, we initialize **YouTubeDL**.  
+## 🚀 Step 2: Initialize YouTubeDL  
+ 
 
 ```kotlin
-val job = YoutubeDL.getInstance().init(
-    appContext = this,  // Application context
-    fileManager = manager,           // Required to download missing dependencies
-    onSuccess = {
-        youtubeDl = it  // Set the global variable
-    },
-    onError = {
-        Timber.e(it)  // Log any errors
-    }
-)
-```
-
-### With Service
-```kotlin
- YoutubeDL.initWithService(
-            this@MainActivity,  //provide activity context
-            withFfmpeg = true,  //Default is false
-            withAria2c = true, //Default is false
+YoutubeDL.init(
+            appContext = this,
+            withFfmpeg = true, //Default is false
+            withAria2c = false, //Default is false
             onSuccess = {
-                youtubeDl = it  //YoutubeDl object is obtained successfully
+                youtubeDl = it
             },
             onError = {
                 Timber.e(it)
             }
         )
 ```
-
-### ✅ Explanation:  
-- `fileManager = manager`: **Downloads required files. Downloads are done only one time when app is first executed.**  
-- `youtubeDl = it`: Stores the initialized **YouTubeDL instance** for future use.  
-- If initialization fails, the error is logged with `Timber.e(it)`.  
-
----
-
-## 🎯 Summary  
-✔️ **Step 1:** Create a global variable for `YoutubeDL`.  
-✔️ **Step 2:** Build a **YoutubeDlFileManager** (optional FFmpeg & Aria2c).  
-✔️ **Step 3:** Initialize `YoutubeDL` and download required dependencies on first install.  
 
 
 
@@ -242,6 +188,10 @@ val job = download(
 - The function ensures proper error handling and prevents duplicate Process IDs.
 
   ### Version History
+  **1.0.18**
+  1. Removed dynamic download for library files.
+  2. Now packaged with the library
+  3. Fixed issue <a href='https://github.com/farimarwat/YoutubeDl-Boom/issues/7'>#7</a>
 - 1.0.17
 
 Fix ffmpeg initialization on initial setup
