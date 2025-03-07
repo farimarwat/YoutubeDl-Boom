@@ -157,41 +157,41 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            /*if (url.isNotEmpty()) {
-                                                youtubeDl?.let {
-                                                    val request = com.farimarwat.helper.YoutubeDLRequest(url)
-                                                    //request.addOption("-f", "bv+ba")
-                                                    request.addOption(
-                                                        "-o",
-                                                        StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
-                                                    );
-                                                    //request.addOption("--downloader", "ffmpeg")
-                                                    if (StoragePermissionHelper.checkAndRequestStoragePermission(
-                                                            this@MainActivity
-                                                        )
-                                                    ) {
-                                                        com.farimarwat.helper.YoutubeDl.download(
-                                                            request = request,
-                                                            pId = processId,
-                                                            progressCallBack = { progress, eta, line ->
-                                                                downloadProgress = progress
-                                                                downloadLine = line
-                                                                Timber.i("line: $line")
-                                                            },
-                                                            onStartProcess = { id ->
-                                                                processId = id
-                                                                Timber.i("ProcessId: ${id}")
-                                                            },
-                                                            onEndProcess = { response ->
-                                                                Timber.i("YoutubeDlResponse: $response")
-                                                            },
-                                                            onError = { error ->
-                                                                Timber.e("OnExecute: $error")
-                                                            }
-                                                        )
-                                                    }
+                                            if (url.isNotEmpty()) {
+                                                val request = YoutubeDl.createYoutubeDLRequest(url)
+
+                                                //request.addOption("-f", "bv+ba")
+                                                YoutubeDl.addOption(
+                                                    request,
+                                                    "-o",
+                                                    StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
+                                                );
+                                                //request.addOption("--downloader", "ffmpeg")
+                                                if (StoragePermissionHelper.checkAndRequestStoragePermission(
+                                                        this@MainActivity
+                                                    )
+                                                ) {
+                                                    YoutubeDl.download(
+                                                        request = request,
+                                                        pId = processId,
+                                                        progressCallBack = { progress, eta, line ->
+                                                            downloadProgress = progress
+                                                            downloadLine = line
+                                                            Timber.i("line: $line")
+                                                        },
+                                                        onStartProcess = { id ->
+                                                            processId = id
+                                                            Timber.i("ProcessId: ${id}")
+                                                        },
+                                                        onEndProcess = { response ->
+                                                            Timber.i("YoutubeDlResponse: $response")
+                                                        },
+                                                        onError = { error ->
+                                                            Timber.e("OnExecute: $error")
+                                                        }
+                                                    )
                                                 }
-                                            }*/
+                                            }
                                         }
                                     },
                                     shape = RoundedCornerShape(12.dp),

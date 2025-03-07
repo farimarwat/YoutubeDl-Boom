@@ -91,7 +91,7 @@ object YoutubeDl {
     }
 
     fun download(
-        request: YoutubeDLRequest, // Use the moved class directly
+        request: Any, // Dynamically created YoutubeDLRequest
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
         onStartProcess: (String) -> Unit = {},
@@ -190,4 +190,47 @@ object YoutubeDl {
             )
         }
     }
+
+    fun createYoutubeDLRequest(url: String): Any {
+        return try {
+            // Step 1: Load the YoutubeDLRequest class dynamically
+            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
+
+            // Step 2: Access the primary constructor that takes a String (URL)
+            val constructor = requestClass.constructors.find { it.parameters.size == 1 && it.parameters[0].type.classifier == String::class }
+            if (constructor == null) {
+                throw IllegalStateException("YoutubeDLRequest primary constructor not found")
+            }
+
+            // Step 3: Create an instance of YoutubeDLRequest
+            constructor.call(url)
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to create YoutubeDLRequest: ${e.message}")
+        }
+    }
+
+    fun addOption(request: Any, option: String, argument: Any): Any? {
+        return try {
+            // Step 1: Load the YoutubeDLRequest class dynamically
+            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
+
+            // Step 2: Find the `addOption` method based on the argument type
+            val addOptionMethod = requestClass.memberFunctions.find { function ->
+                function.name == "addOption" &&
+                        function.parameters.size == 3 && // instance, option, argument
+                        function.parameters[1].type.classifier == String::class && // option is String
+                        function.parameters[2].type.classifier == argument::class // argument matches the type
+            }
+
+            if (addOptionMethod == null) {
+                throw NoSuchMethodException("addOption method not found in YoutubeDLRequest")
+            }
+
+            // Step 3: Invoke the `addOption` method
+            addOptionMethod.call(request, option, argument)
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to add option to YoutubeDLRequest: ${e.message}")
+        }
+    }
+
 }
