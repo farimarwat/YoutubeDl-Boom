@@ -165,7 +165,8 @@ class MainActivity : ComponentActivity() {
                                                     request,
                                                     "-o",
                                                     StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
-                                                );
+                                                )
+                                                YoutubeDl.addOption(request,"--no-part")
                                                 //request.addOption("--downloader", "ffmpeg")
                                                 if (StoragePermissionHelper.checkAndRequestStoragePermission(
                                                         this@MainActivity

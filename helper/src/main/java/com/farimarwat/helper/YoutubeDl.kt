@@ -233,4 +233,27 @@ object YoutubeDl {
         }
     }
 
+    fun addOption(request: Any, option: String): Any? {
+        return try {
+            // Step 1: Load the YoutubeDLRequest class dynamically
+            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
+
+            // Step 2: Find the `addOption` method that takes a single String parameter
+            val addOptionMethod = requestClass.memberFunctions.find { function ->
+                function.name == "addOption" &&
+                        function.parameters.size == 2 && // instance, option
+                        function.parameters[1].type.classifier == String::class // option is String
+            }
+
+            if (addOptionMethod == null) {
+                throw NoSuchMethodException("addOption method with single String parameter not found in YoutubeDLRequest")
+            }
+
+            // Step 3: Invoke the `addOption` method
+            addOptionMethod.call(request, option)
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to add option to YoutubeDLRequest: ${e.message}")
+        }
+    }
+
 }
