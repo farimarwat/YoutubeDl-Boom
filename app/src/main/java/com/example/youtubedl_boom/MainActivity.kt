@@ -56,12 +56,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.init(
+        com.farimarwat.helper.YoutubeDl.init(
             appContext = this,
-            withFFmpeg = true,
+            withFfmpeg = true,
             withAria2c = false,
             onSuccess = {
-                youtubeDl = it
+                Timber.i("Initialized: ${it}")
             },
             onError = {
                 Timber.e(it)
