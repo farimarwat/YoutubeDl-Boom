@@ -115,18 +115,14 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            youtubeDl?.let {
-                                                val request = YoutubeDLRequest(url)
-                                                request.addOption("-f", "best[height<=480]/best")
-                                                it.getInfo(
-                                                    request = request,
-                                                    onSuccess = {
-                                                        videoInfo = it
-                                                        showScanProgress = false
-                                                    },
-                                                    onError = { Timber.i(it) }
-                                                )
-                                            }
+                                            com.farimarwat.helper.YoutubeDl.getInfo(
+                                                url = url,
+                                                onSuccess = {
+                                                    showScanProgress = false
+                                                    Timber.i("VideoInfo: ${it}")
+                                                },
+                                                onError = { Timber.i(it) }
+                                            )
                                         }
                                     },
                                     modifier = Modifier.size(50.dp)

@@ -48,4 +48,42 @@ object YoutubeDl {
             }
         }
     }
+
+    fun getInfo(
+        url: String,
+        onSuccess: (Any) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ): Job {
+        return CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
+
+                val youtubeDLInstance = youtubeDLClass.objectInstance
+                    if(youtubeDLInstance == null){
+                        onError(IllegalStateException("Failed to access the singleton instance of YoutubeDL"))
+                        return@launch
+                    }
+
+                val getInfoMethod = youtubeDLClass.memberFunctions.find { function ->
+                    function.name == "getInfo" &&
+                            function.parameters.getOrNull(1)?.type?.classifier == String::class
+                }
+                if(getInfoMethod == null){
+                    onError(NoSuchMethodException("getInfo method with String URL not found in YoutubeDL"))
+                    return@launch
+                }
+
+                getInfoMethod.call(
+                    youtubeDLInstance,
+                    url,
+                    { videoInfo: Any -> onSuccess(videoInfo) },
+                    { throwable: Throwable -> onError(throwable) }
+                )
+
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
 }
