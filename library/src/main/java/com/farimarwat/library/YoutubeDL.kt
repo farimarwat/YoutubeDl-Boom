@@ -39,22 +39,25 @@ object YoutubeDL {
     private var ENV_PYTHONHOME: String? = null
     private var TMPDIR: String = ""
     private val downloadIdProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
-    private var serviceConnection:ServiceConnection? = null
-    var isBound = false
-    private var isInitializing = false
 
     /**
      * Initializes the YoutubeDL library asynchronously.
      *
-     * This function checks if the required library files are ready. If they are,
-     * it initializes YoutubeDL, FFmpeg, and Aria2c if enabled. If the files are not ready,
-     * it attempts to download them before proceeding with initialization.
+     * This function performs the initialization of the YoutubeDL library, optionally including
+     * FFmpeg and Aria2c. It executes in a background coroutine and invokes the appropriate callback
+     * on success or failure.
      *
-     * @param appContext The application context used for initialization.
-     * @param fileManager The file manager responsible for handling YoutubeDL library files. Defaults to [YoutubeDlFileManager].
-     * @param onSuccess Callback invoked on successful initialization with the initialized [YoutubeDL] instance.
-     * @param onError Callback invoked if an error occurs during initialization.
-     * @return A [Job] representing the initialization coroutine.
+     * - If `withFfmpeg` is `true`, FFmpeg is initialized.
+     * - If `withAria2c` is `true`, Aria2c is initialized.
+     * - If an error occurs during initialization, the `onError` callback is triggered.
+     * - Upon successful initialization, the `onSuccess` callback is called on the main thread.
+     *
+     * @param appContext The application context required for initialization.
+     * @param withFfmpeg Boolean flag indicating whether to initialize FFmpeg. Defaults to `false`.
+     * @param withAria2c Boolean flag indicating whether to initialize Aria2c. Defaults to `false`.
+     * @param onSuccess Callback invoked on successful initialization, providing the initialized [YoutubeDL] instance.
+     * @param onError Callback invoked if an error occurs during initialization, receiving the encountered [Throwable].
+     * @return A [Job] representing the coroutine handling the initialization process.
      */
     fun init(
         appContext: Context,
@@ -81,6 +84,8 @@ object YoutubeDL {
             }
         }
     }
+
+
     private fun performInit(appContext: Context) {
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
@@ -153,6 +158,20 @@ object YoutubeDL {
         return request.hasOption("--dump-json") && !out.isEmpty() && request.hasOption("--ignore-errors")
     }
 
+    /**
+     * Fetches video information from the provided URL using YoutubeDL.
+     *
+     * This function creates a [YoutubeDLRequest] for the given URL and retrieves metadata such as
+     * video title, duration, and available formats. It executes asynchronously and invokes the
+     * appropriate callback upon completion.
+     *
+     * - If the request succeeds, the `onSuccess` callback is triggered with a [VideoInfo] instance.
+     * - If an error occurs, the `onError` callback is triggered with the encountered [Throwable].
+     *
+     * @param url The URL of the video to retrieve information for.
+     * @param onSuccess Callback invoked upon successful retrieval of video information, providing a [VideoInfo] instance.
+     * @param onError Callback invoked if an error occurs during the process, receiving the encountered [Throwable].
+     */
     fun getInfo(
         url: String,
         onSuccess: (VideoInfo) -> Unit = {},
@@ -167,11 +186,20 @@ object YoutubeDL {
     }
 
     /**
-     * Retrieves video information from the given URL.
+     * Retrieves video information from a given [YoutubeDLRequest].
      *
-     * @param url The URL of the video.
-     * @param onSuccess Callback function invoked with the retrieved [VideoInfo] on success.
-     * @param onError Callback function invoked with an error [Throwable] if retrieval fails.
+     * This function executes the YoutubeDL command-line tool in a background coroutine to fetch
+     * metadata about a video, such as its title, duration, and available formats. The result is
+     * parsed into a [VideoInfo] object.
+     *
+     * - The function runs the process using Python and Youtube-DLP.
+     * - It captures both standard output and error streams.
+     * - If successful, the parsed [VideoInfo] is returned via the `onSuccess` callback.
+     * - If an error occurs at any stage, the `onError` callback is triggered with the encountered [Throwable].
+     *
+     * @param request The [YoutubeDLRequest] containing the video URL and options.
+     * @param onSuccess Callback invoked with the retrieved [VideoInfo] upon successful execution.
+     * @param onError Callback invoked if an error occurs during the process, providing the encountered [Throwable].
      */
     fun getInfo(
         request: YoutubeDLRequest,
@@ -245,17 +273,24 @@ object YoutubeDL {
     class CanceledException : Exception()
 
     /**
-     * Downloads a video using the given request.
+     * Downloads media using youtube-dl with the provided request.
      *
-     * @param request The [YoutubeDLRequest] containing download parameters.
-     * @param pId Optional process ID to track the download.
-     * @param progressCallBack Callback function for reporting progress with percentage, elapsed time, and speed.
-     * @param onStartProcess Callback function invoked when the process starts with the process ID.
-     * @param onEndProcess Callback function invoked when the process ends with the [YoutubeDLResponse].
-     * @param onError Callback function invoked if an error occurs during the download.
+     * @param request The YoutubeDLRequest containing the URL and options for the download.
+     * @param pId Optional process ID to track the download; if null, a new UUID is generated.
+     * @param progressCallBack Optional callback function that provides progress updates:
+     *        - [Float]: Download progress percentage.
+     *        - [Long]: Downloaded bytes.
+     *        - [String]: Status message.
+     * @param onStartProcess Callback invoked when the download process starts, receiving the process ID.
+     * @param onEndProcess Callback invoked when the download completes successfully, returning a [YoutubeDLResponse].
+     * @param onError Callback invoked if an error occurs, receiving the thrown [Throwable].
      * @return A [Job] representing the coroutine handling the download process.
-     * @throws YoutubeDLException If an error occurs during execution.
+     *
+     * The function ensures initialization and prevents duplicate process IDs.
+     * It modifies the request options to optimize downloads and uses a [ProcessBuilder] to execute youtube-dl.
+     * The download process output is captured, and errors are handled gracefully.
      */
+
     fun download(
         request: YoutubeDLRequest,
         pId: String? = null,
@@ -377,10 +412,14 @@ object YoutubeDL {
     }
 
     /**
-     * Terminates a running process by its ID.
+     * Destroys the download process associated with the given process ID.
      *
      * @param id The unique identifier of the process to be terminated.
-     * @return `true` if the process was successfully destroyed, `false` if the process was not found or could not be terminated.
+     * @return `true` if the process was successfully destroyed, `false` if no matching process was found.
+     *
+     * This function looks up the process in [downloadIdProcessMap], terminates it,
+     * and removes it from the map. If running on Android O (API 26+) or higher,
+     * it checks whether the process is still alive before destroying it.
      */
     fun destroyProcessById(id: String): Boolean {
         if (downloadIdProcessMap.containsKey(id)) {

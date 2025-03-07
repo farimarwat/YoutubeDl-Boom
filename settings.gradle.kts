@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "YoutubeDl-Boom"
 include(":app")
 include(":library")
+include(":helper")
