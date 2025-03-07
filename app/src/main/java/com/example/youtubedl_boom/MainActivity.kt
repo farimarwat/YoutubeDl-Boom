@@ -43,21 +43,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
-import com.farimarwat.library.VideoFormat
-import com.farimarwat.library.VideoInfo
-import com.farimarwat.library.YoutubeDL
-import com.farimarwat.library.YoutubeDLRequest
+import com.farimarwat.helper.YoutubeDl
+import com.farimarwat.helper.mapper.VideoInfo
+
 import com.farimarwat.library.YoutubeDLResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class MainActivity : ComponentActivity() {
-    var youtubeDl: YoutubeDL? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        com.farimarwat.helper.YoutubeDl.init(
+       YoutubeDl.init(
             appContext = this,
             withFfmpeg = true,
             withAria2c = false,
@@ -120,7 +120,10 @@ class MainActivity : ComponentActivity() {
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
-                                                    Timber.i("VideoInfo: ${(it as VideoInfo).title}")
+                                                    CoroutineScope(Dispatchers.Main).launch {
+                                                       videoInfo= YoutubeDl.mapVideoInfo(it)
+                                                    }
+
                                                 },
                                                 onError = { Timber.i(it) }
                                             )
@@ -154,9 +157,9 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            if (url.isNotEmpty()) {
+                                            /*if (url.isNotEmpty()) {
                                                 youtubeDl?.let {
-                                                    val request = YoutubeDLRequest(url)
+                                                    val request = com.farimarwat.helper.YoutubeDLRequest(url)
                                                     //request.addOption("-f", "bv+ba")
                                                     request.addOption(
                                                         "-o",
@@ -167,7 +170,7 @@ class MainActivity : ComponentActivity() {
                                                             this@MainActivity
                                                         )
                                                     ) {
-                                                        it.download(
+                                                        com.farimarwat.helper.YoutubeDl.download(
                                                             request = request,
                                                             pId = processId,
                                                             progressCallBack = { progress, eta, line ->
@@ -188,7 +191,7 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                 }
-                                            }
+                                            }*/
                                         }
                                     },
                                     shape = RoundedCornerShape(12.dp),
@@ -212,10 +215,10 @@ class MainActivity : ComponentActivity() {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
-                                        Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
+                                        /*Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
                                         youtubeDl?.destroyProcessById(
                                             processId
-                                        )
+                                        )*/
                                     }, shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
