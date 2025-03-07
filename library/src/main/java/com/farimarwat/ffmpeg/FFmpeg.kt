@@ -4,7 +4,6 @@ import android.content.Context
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.common.utils.ZipUtils.unzip
-import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.YoutubeDLException
 
 import org.apache.commons.io.FileUtils
@@ -19,7 +18,7 @@ object FFmpeg {
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
         if (!baseDir.exists()) baseDir.mkdir()
-        binDir = YoutubeDlFileManager.DOWNLOAD_DIR
+        binDir = File(appContext.applicationInfo.nativeLibraryDir)
         val packagesDir = File(baseDir, packagesRoot)
         val ffmpegDir = File(packagesDir, ffmegDirName)
         initFFmpeg(appContext, ffmpegDir)

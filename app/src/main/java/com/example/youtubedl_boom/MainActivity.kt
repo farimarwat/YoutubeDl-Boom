@@ -50,12 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
-import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLRequest
 import com.farimarwat.library.YoutubeDLResponse
-import com.farimarwat.library.service.YoutubeDlService
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -65,9 +63,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.initWithService(
-            context = this@MainActivity,
-            withFfmpeg = true,
+        YoutubeDL.init(
+            appContext = this,
+            withFFmpeg = true,
             withAria2c = false,
             onSuccess = {
                 youtubeDl = it
@@ -169,7 +167,7 @@ class MainActivity : ComponentActivity() {
                                             if (url.isNotEmpty()) {
                                                 youtubeDl?.let {
                                                     val request = YoutubeDLRequest(url)
-                                                    request.addOption("-f", "best[height<=480]/best")
+                                                    //request.addOption("-f", "bv+ba")
                                                     request.addOption(
                                                         "-o",
                                                         StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
