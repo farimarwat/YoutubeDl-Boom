@@ -43,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
+import com.farimarwat.library.VideoFormat
 import com.farimarwat.library.VideoInfo
 import com.farimarwat.library.YoutubeDL
 import com.farimarwat.library.YoutubeDLRequest
@@ -119,7 +120,7 @@ class MainActivity : ComponentActivity() {
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
-                                                    Timber.i("VideoInfo: ${it}")
+                                                    Timber.i("VideoInfo: ${(it as VideoInfo).title}")
                                                 },
                                                 onError = { Timber.i(it) }
                                             )
