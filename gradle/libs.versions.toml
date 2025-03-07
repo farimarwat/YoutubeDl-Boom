@@ -19,7 +19,7 @@ appcompat = "1.7.0"
 material = "1.12.0"
 timber = "5.0.1"
 nexusVersion = "1.3.0"
-youtubedlBoom = "1.0.3"
+youtubedlBoom = "1.0.18"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

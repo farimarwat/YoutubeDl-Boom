@@ -1,13 +1,8 @@
 package com.farimarwat.library
 
-import android.app.Activity
-import android.app.Activity.BIND_AUTO_CREATE
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
-import android.os.IBinder
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
@@ -63,7 +58,7 @@ object YoutubeDL {
      */
     fun init(
         appContext: Context,
-        withFFmpeg:Boolean = false,
+        withFfmpeg:Boolean = false,
         withAria2c:Boolean = false,
         onSuccess: suspend (YoutubeDL) -> Unit = {},
         onError: (Throwable) -> Unit = {}
@@ -75,7 +70,7 @@ object YoutubeDL {
         val scope = CoroutineScope(Dispatchers.IO + job + exception)
         return scope.launch {
             performInit(appContext)
-            if (withFFmpeg) {
+            if (withFfmpeg) {
                 FFmpeg.init(appContext)
             }
             if (withAria2c) {
