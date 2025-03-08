@@ -135,10 +135,7 @@ class MainActivity : ComponentActivity() {
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
-                                                    CoroutineScope(Dispatchers.Main).launch {
-                                                        videoInfo = YoutubeDl.mapVideoInfo(it)
-                                                    }
-
+                                                    videoInfo = YoutubeDl.mapVideoInfo(it)
                                                 },
                                                 onError = { Timber.i(it) }
                                             )
