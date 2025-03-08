@@ -451,7 +451,6 @@ object YoutubeDL {
     }
 
 
-    @Throws(YoutubeDLException::class)
     suspend fun updateYoutubeDL(
         appContext: Context,
         updateChannel: UpdateChannel = UpdateChannel.STABLE,

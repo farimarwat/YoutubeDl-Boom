@@ -57,12 +57,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-       YoutubeDl.init(
+        YoutubeDl.init(
             appContext = this,
             withFfmpeg = true,
             withAria2c = false,
             onSuccess = {
-                Timber.i("Initialized: ${it}")
+                CoroutineScope(Dispatchers.IO).launch {
+                    val updateChannel = YoutubeDl.getUpdateChannel(YoutubeDl.CHANNEL_MASTER)
+                    YoutubeDl.updateYoutubeDL(
+                        appContext = this@MainActivity,
+                        updateChannel = updateChannel,
+                        onSuccess = {
+                            val status = YoutubeDl.mapUpdateStatus(it)
+                            val version = YoutubeDl.version(this@MainActivity)
+                            val versionName = YoutubeDl.versionName(this@MainActivity)
+                            Timber.i("YoutubeDl Update Status: $status $version $versionName")
+                        },
+                        onError = {
+                            Timber.i(it)
+                        }
+                    )
+                }
             },
             onError = {
                 Timber.e(it)
@@ -116,12 +131,12 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            com.farimarwat.helper.YoutubeDl.getInfo(
+                                            YoutubeDl.getInfo(
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
                                                     CoroutineScope(Dispatchers.Main).launch {
-                                                       videoInfo= YoutubeDl.mapVideoInfo(it)
+                                                        videoInfo = YoutubeDl.mapVideoInfo(it)
                                                     }
 
                                                 },
@@ -166,15 +181,14 @@ class MainActivity : ComponentActivity() {
                                                     "-o",
                                                     StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
                                                 )
-                                                YoutubeDl.addOption(request,"--no-part")
-                                                //request.addOption("--downloader", "ffmpeg")
+                                                YoutubeDl.addOption(request, "--no-part")
+
                                                 if (StoragePermissionHelper.checkAndRequestStoragePermission(
                                                         this@MainActivity
                                                     )
                                                 ) {
                                                     YoutubeDl.download(
                                                         request = request,
-                                                        pId = processId,
                                                         progressCallBack = { progress, eta, line ->
                                                             downloadProgress = progress
                                                             downloadLine = line
@@ -216,10 +230,10 @@ class MainActivity : ComponentActivity() {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
-                                        /*Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
-                                        youtubeDl?.destroyProcessById(
+                                        Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
+                                        YoutubeDl.destroyProcessById(
                                             processId
-                                        )*/
+                                        )
                                     }, shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
