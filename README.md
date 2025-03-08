@@ -29,7 +29,13 @@ While **youtubedl-android** is an excellent library (huge thanks to JunkFood for
 
 ### 5️⃣ Unnecessary Code Complexity  
 - **Issue:** youtubedl-android used **multiple modules** for simple tasks, making it harder to manage.  
-- **Solution:** We **simplified the structure** by consolidating it into **a single module with a single dependency**, making integration much easier.  
+- **Solution:** We **simplified the structure** by consolidating it into **a single module with a single dependency**, making integration much easier.
+
+### 5️⃣ Helper API (in case of Dynamic Feature Module)  
+- **Issue:** Writing reflection methods can be tedious when distributing the module via DFM.  
+- **Solution:** We provide a seamless API to communicate with `youtubedl-boom` effortlessly.
+
+
 
 With these improvements, **youtubedl-boom** is now more efficient, lightweight, and developer-friendly 🚀.  
 
@@ -41,6 +47,13 @@ To use `youtubedl-boom` in your Android project, add the following dependency in
 ```kotlin
 dependencies {
     implementation("io.github.farimarwat:youtubedl-boom:1.0.18")
+}
+```
+
+To use `helper API` (Optional - In case of DFM)
+```kotlin
+dependencies {
+    implementation("io.github.farimarwat:youtubedl-boom-helper:1.1")
 }
 ```
 
@@ -61,8 +74,9 @@ Include this in app's manifest
 </application>
 ```
 
-#  📥 YoutubeDl Setup Guide  
+#  📥 YoutubeDl Setup Guide without DFM
 
+**Note: If you are packaging the `youtubedl-boom` with the app then there is no need to use `Helper API` but it will increase the apk size **
 
 ## 🛠 Step 1: Declare a Global Variable  
 We create a **nullable** global variable to store the `YoutubeDL` instance.  
@@ -186,6 +200,87 @@ val job = download(
 - The download process executes **asynchronously in the background** using Kotlin Coroutines (`Dispatchers.IO`).
 - `yt-dlp` generates detailed logs in `outputLine`, which can be parsed for specific information.
 - The function ensures proper error handling and prevents duplicate Process IDs.
+
+#  📥 YoutubeDl Setup Guide with DFM
+
+Declare a global flag `isInitialized` (may be in app class) and set it after successful initialization.  
+
+## Initialization  
+```kotlin
+YoutubeDl.init(
+    appContext = this,
+    withFfmpeg = true, // Default is false
+    withAria2c = false, // Default is false
+    onSuccess = {
+        isInitialized = true
+    },
+    onError = {
+        Timber.e(it)
+    }
+)
+```
+Use the parameter `withFfmpeg` only if you want to download files with `FFMPEG`, and the same applies to `Aria2c`.  
+**Note:** This `YoutubeDl` object is from the `helper` package. Do not confuse it with `YoutubeDl` from the `library` package.
+
+
+## Getting Video Info  
+```kotlin
+YoutubeDl.getInfo(
+    url = url,
+    onSuccess = {
+        val videoInfo = YoutubeDl.mapVideoInfo(it)
+    },
+    onError = { Timber.i(it) }
+)
+```
+- `url`: A string URL for supported downloads.  
+- `onSuccess`: Returns a `VideoInfo` object from the library package. To access it, we first need to convert it using the `mapVideoInfo()` function.  
+
+**Note:** Never forget to check `isInitialized` to avoid unexpected behavior.  
+
+
+## Download a Video  
+
+First, create a download request:  
+
+```kotlin
+val request = YoutubeDl.createYoutubeDLRequest(url)
+```
+
+Next, add options. There are two ways: using a `Key-Value` pair or only a `Value`. Both are illustrated below:  
+
+```kotlin
+YoutubeDl.addOption(
+    request,
+    "-o",
+    StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
+)
+YoutubeDl.addOption(request, "--no-part")
+```
+
+**Note:** `request` is passed witch we create above ☝️ 
+
+Finally, call the `download` function:  
+
+```kotlin
+YoutubeDl.download(
+    request = request,
+    progressCallBack = { progress, eta, line ->
+        // Handle progress updates
+    },
+    onStartProcess = { id ->
+        // Handle process start
+    },
+    onEndProcess = { response ->
+        // Handle process completion
+    },
+    onError = { error ->
+        // Handle errors
+    }
+)
+```
+
+
 
   ### Version History
   **1.0.18**
