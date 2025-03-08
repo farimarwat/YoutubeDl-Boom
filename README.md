@@ -50,7 +50,7 @@ dependencies {
 }
 ```
 
-To use `helper API` (Optional - In case of DFM)
+To use `helper API` (Optional - In case of DFM). Details are below in the #2 section
 ```kotlin
 dependencies {
     implementation("io.github.farimarwat:youtubedl-boom-helper:1.1")
@@ -74,9 +74,9 @@ Include this in app's manifest
 </application>
 ```
 
-#  📥 YoutubeDl Setup Guide without DFM
+#  📥 #1 YoutubeDl Setup Guide without DFM
 
-**Note: If you are packaging the `youtubedl-boom` with the app then there is no need to use `Helper API` but it will increase the apk size **
+**Note: If you are packaging the `youtubedl-boom` with the app then there is no need to use `Helper API` but it will increase the apk size**
 
 ## 🛠 Step 1: Declare a Global Variable  
 We create a **nullable** global variable to store the `YoutubeDL` instance.  
@@ -201,7 +201,7 @@ val job = download(
 - `yt-dlp` generates detailed logs in `outputLine`, which can be parsed for specific information.
 - The function ensures proper error handling and prevents duplicate Process IDs.
 
-#  📥 YoutubeDl Setup Guide with DFM
+#  📥 #2 YoutubeDl Setup Guide with DFM
 
 Declare a global flag `isInitialized` (may be in app class) and set it after successful initialization.  
 
@@ -280,6 +280,42 @@ YoutubeDl.download(
 )
 ```
 
+### To destroy a process:
+```kotlin
+YoutubeDl.destroyProcessById(processId)
+```
+
+### Update  
+
+To update, first, create the update channel:  
+
+```kotlin
+val updateChannel = YoutubeDl.getUpdateChannel(YoutubeDl.CHANNEL_MASTER)
+```
+
+Next, pass this channel to the update function:  
+
+```kotlin
+YoutubeDl.updateYoutubeDL(
+    appContext = this,
+    updateChannel = updateChannel,
+    onSuccess = {
+        val status = YoutubeDl.mapUpdateStatus(it)
+    },
+    onError = {
+        Timber.i(it)
+    }
+)
+```
+
+`mapUpdateStatus` is used to convert the status from the library package.  
+
+### Get version and versionName
+```kotlin
+val version = YoutubeDl.version(this)
+val versionName = YoutubeDl.versionName(this)
+
+```
 
 
   ### Version History
