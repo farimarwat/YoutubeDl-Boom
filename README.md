@@ -107,6 +107,7 @@ YoutubeDL.init(
         )
 ```
 
+### ‼️ I recommend enabling FFMPEG, as it is required for some videos that are split. It is essential for merging audio and video after a successful download.
 
 
 ### 🔹 Example: Retrieving Video Information  
