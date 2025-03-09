@@ -67,7 +67,7 @@ object YoutubeDL {
         appContext: Context,
         withFfmpeg:Boolean = false,
         withAria2c:Boolean = false,
-        onSuccess:(YoutubeDL) -> Unit = {},
+        onSuccess:suspend (YoutubeDL) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ): Job {
         val exception = CoroutineExceptionHandler { _, throwable ->
