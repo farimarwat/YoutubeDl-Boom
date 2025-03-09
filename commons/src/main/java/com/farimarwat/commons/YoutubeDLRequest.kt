@@ -1,4 +1,4 @@
-package com.farimarwat.library
+package com.farimarwat.commons
 
 class YoutubeDLRequest {
     private val urls: List<String>

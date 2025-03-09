@@ -1,13 +1,14 @@
 package com.farimarwat.library
 
 import android.content.Context
-import android.content.ServiceConnection
 import android.os.Build
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.common.utils.ZipUtils.unzip
 import com.farimarwat.commons.VideoInfo
+import com.farimarwat.commons.YoutubeDLRequest
+import com.farimarwat.commons.YoutubeDLResponse
 import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.farimarwat.ffmpeg.FfmpegStreamExtractor

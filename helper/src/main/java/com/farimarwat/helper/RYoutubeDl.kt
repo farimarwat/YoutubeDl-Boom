@@ -2,6 +2,7 @@ package com.farimarwat.helper
 
 import android.content.Context
 import com.farimarwat.commons.VideoInfo
+import com.farimarwat.commons.YoutubeDLRequest
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
@@ -140,7 +141,7 @@ object RYoutubeDl {
      * @return A [Job] representing the coroutine performing the download on [Dispatchers.IO].
      */
     fun download(
-        request: Any, // Dynamically created YoutubeDLRequest
+        request: YoutubeDLRequest,
         pId: String? = null,
         progressCallBack: ((Float, Long, String) -> Unit)? = null,
         onStartProcess: (String) -> Unit = {},
@@ -193,106 +194,6 @@ object RYoutubeDl {
             } catch (e: Exception) {
                 onError(e)
             }
-        }
-    }
-
-    /**
-     * Dynamically creates an instance of `YoutubeDLRequest` using reflection.
-     *
-     * This method loads the `YoutubeDLRequest` class at runtime, retrieves its primary constructor,
-     * and instantiates it with the provided URL.
-     *
-     * @param url The video URL to be used for creating the `YoutubeDLRequest`.
-     * @return An instance of `YoutubeDLRequest` created dynamically.
-     * @throws IllegalStateException If the class or constructor is not found, or instantiation fails.
-     */
-    fun createYoutubeDLRequest(url: String): Any {
-        return try {
-            // Step 1: Load the YoutubeDLRequest class dynamically
-            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
-
-            // Step 2: Access the primary constructor that takes a String (URL)
-            val constructor =
-                requestClass.constructors.find { it.parameters.size == 1 && it.parameters[0].type.classifier == String::class }
-            if (constructor == null) {
-                throw IllegalStateException("YoutubeDLRequest primary constructor not found")
-            }
-
-            // Step 3: Create an instance of YoutubeDLRequest
-            constructor.call(url)
-        } catch (e: Exception) {
-            throw IllegalStateException("Failed to create YoutubeDLRequest: ${e.message}")
-        }
-    }
-
-    /**
-     * Adds an option to a dynamically loaded `YoutubeDLRequest` instance.
-     *
-     * This function uses reflection to find and invoke the `addOption` method of the `YoutubeDLRequest` class.
-     *
-     * @param request The `YoutubeDLRequest` instance to which the option should be added.
-     * @param option The name of the option to be added.
-     * @param argument The value of the option, which can be of any type.
-     * @return The result of invoking the `addOption` method, or `null` if no return value is expected.
-     * @throws IllegalStateException If the `YoutubeDLRequest` class or `addOption` method cannot be found,
-     * or if invocation fails.
-     */
-    fun addOption(request: Any, option: String, argument: Any): Any? {
-        return try {
-            // Step 1: Load the YoutubeDLRequest class dynamically
-            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
-
-            // Step 2: Find the `addOption` method based on the argument type
-            val addOptionMethod = requestClass.memberFunctions.find { function ->
-                function.name == "addOption" &&
-                        function.parameters.size == 3 && // instance, option, argument
-                        function.parameters[1].type.classifier == String::class && // option is String
-                        function.parameters[2].type.classifier == argument::class // argument matches the type
-            }
-
-            if (addOptionMethod == null) {
-                throw NoSuchMethodException("addOption method not found in YoutubeDLRequest")
-            }
-
-            // Step 3: Invoke the `addOption` method
-            addOptionMethod.call(request, option, argument)
-        } catch (e: Exception) {
-            throw IllegalStateException("Failed to add option to YoutubeDLRequest: ${e.message}")
-        }
-    }
-
-    /**
-     * Adds an option to a dynamically loaded `YoutubeDLRequest` instance.
-     *
-     * This function uses reflection to find and invoke the `addOption` method of the `YoutubeDLRequest` class,
-     * which accepts a single string parameter.
-     *
-     * @param request The `YoutubeDLRequest` instance to which the option should be added.
-     * @param option The name of the option to be added.
-     * @return The result of invoking the `addOption` method, or `null` if no return value is expected.
-     * @throws IllegalStateException If the `YoutubeDLRequest` class or the corresponding `addOption` method
-     * cannot be found, or if invocation fails.
-     */
-    fun addOption(request: Any, option: String): Any? {
-        return try {
-            // Step 1: Load the YoutubeDLRequest class dynamically
-            val requestClass = Class.forName("com.farimarwat.library.YoutubeDLRequest").kotlin
-
-            // Step 2: Find the `addOption` method that takes a single String parameter
-            val addOptionMethod = requestClass.memberFunctions.find { function ->
-                function.name == "addOption" &&
-                        function.parameters.size == 2 && // instance, option
-                        function.parameters[1].type.classifier == String::class // option is String
-            }
-
-            if (addOptionMethod == null) {
-                throw NoSuchMethodException("addOption method with single String parameter not found in YoutubeDLRequest")
-            }
-
-            // Step 3: Invoke the `addOption` method
-            addOptionMethod.call(request, option)
-        } catch (e: Exception) {
-            throw IllegalStateException("Failed to add option to YoutubeDLRequest: ${e.message}")
         }
     }
 

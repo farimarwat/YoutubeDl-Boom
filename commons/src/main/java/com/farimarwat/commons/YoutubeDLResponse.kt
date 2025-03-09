@@ -1,4 +1,4 @@
-package com.farimarwat.library
+package com.farimarwat.commons
 
 data class YoutubeDLResponse(
     val command: List<String?>,

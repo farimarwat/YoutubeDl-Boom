@@ -44,9 +44,10 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.commons.VideoInfo
+import com.farimarwat.commons.YoutubeDLRequest
 import com.farimarwat.helper.RYoutubeDl
 
-import com.farimarwat.library.YoutubeDLResponse
+import com.farimarwat.commons.YoutubeDLResponse
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -156,13 +157,12 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             if (url.isNotEmpty()) {
-                                                val request = RYoutubeDl.createYoutubeDLRequest(url)
-                                                RYoutubeDl.addOption(
-                                                    request,
+                                                val request = YoutubeDLRequest(url)
+                                                request.addOption(
                                                     "-o",
                                                     StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
                                                 )
-                                                RYoutubeDl.addOption(request, "--no-part")
+                                                request.addOption("--no-part")
 
                                                 if (StoragePermissionHelper.checkAndRequestStoragePermission(
                                                         this@MainActivity
