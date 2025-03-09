@@ -1,3 +1,5 @@
+### ⚠️ Some major changes have been made in version 1.0.19. Before updating, please review the usage guide again; otherwise, you may encounter import issues.
+
 ## 🎩 Acknowledgment & Credits  
 
 ### 😔 Sorry for Java and x86, x64
@@ -320,6 +322,10 @@ val versionName = YoutubeDl.versionName(this)
 
 
   ### Version History
+  **youtubedl-boom:1.0.19**
+  - Moved YoutubeDlRequest, YoutubeDlOption, YoutubeDlResponse, VideoInfo, VideoFormat to commons library
+  - The above changes made because these are common between youtubedl-helper and youtubedl-boom
+  
   **1.0.18**
   1. Removed dynamic download for library files.
   2. Now packaged with the library
