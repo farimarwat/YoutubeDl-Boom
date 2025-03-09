@@ -62,22 +62,7 @@ class MainActivity : ComponentActivity() {
             withFfmpeg = true,
             withAria2c = false,
             onSuccess = {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val updateChannel = YoutubeDl.getUpdateChannel(YoutubeDl.CHANNEL_MASTER)
-                    YoutubeDl.updateYoutubeDL(
-                        appContext = this@MainActivity,
-                        updateChannel = updateChannel,
-                        onSuccess = {
-                            val status = YoutubeDl.mapUpdateStatus(it)
-                            val version = YoutubeDl.version(this@MainActivity)
-                            val versionName = YoutubeDl.versionName(this@MainActivity)
-                            Timber.i("YoutubeDl Update Status: $status $version $versionName")
-                        },
-                        onError = {
-                            Timber.i(it)
-                        }
-                    )
-                }
+                Timber.i("Initialized successfully")
             },
             onError = {
                 Timber.e(it)
@@ -136,6 +121,9 @@ class MainActivity : ComponentActivity() {
                                                 onSuccess = {
                                                     showScanProgress = false
                                                     videoInfo = YoutubeDl.mapVideoInfo(it)
+                                                    for(item in videoInfo?.formats!!){
+                                                        Timber.i("$item")
+                                                    }
                                                 },
                                                 onError = { Timber.i(it) }
                                             )
@@ -171,8 +159,6 @@ class MainActivity : ComponentActivity() {
                                         scope.launch {
                                             if (url.isNotEmpty()) {
                                                 val request = YoutubeDl.createYoutubeDLRequest(url)
-
-                                                //request.addOption("-f", "bv+ba")
                                                 YoutubeDl.addOption(
                                                     request,
                                                     "-o",

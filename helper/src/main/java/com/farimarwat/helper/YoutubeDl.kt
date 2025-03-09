@@ -1,6 +1,7 @@
 package com.farimarwat.helper
 
 import android.content.Context
+import com.farimarwat.helper.mapper.VideoFormat
 import com.farimarwat.helper.mapper.VideoInfo
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
@@ -273,8 +274,7 @@ object YoutubeDl {
                     ?.call(source) as? ArrayList<String>,
                 requestedFormats = source::class.memberProperties.find { it.name == "requestedFormats" }
                     ?.call(source) as? ArrayList<com.farimarwat.helper.mapper.VideoFormat>,
-                formats = source::class.memberProperties.find { it.name == "formats" }
-                    ?.call(source) as? ArrayList<com.farimarwat.helper.mapper.VideoFormat>,
+                formats = mapSourceToVideoFormats(source),
                 thumbnails = source::class.memberProperties.find { it.name == "thumbnails" }
                     ?.call(source) as? ArrayList<com.farimarwat.helper.mapper.VideoThumbnail>,
                 manifestUrl = source::class.memberProperties.find { it.name == "manifestUrl" }
@@ -285,6 +285,94 @@ object YoutubeDl {
                     ?.call(source) as? Boolean
             )
         }
+    }
+
+    /**
+     * Maps a source (library) [VideoFormat] object to a (helper) [VideoFormat] object using reflection.
+     *
+     * This function retrieves properties from the [VideoFormat] object belongs to parent library youtubedl-boom and maps them to the corresponding
+     * properties of the [VideoFormat] data class. It uses reflection to dynamically access the properties
+     * of the [source] object. If a property is not found or cannot be cast to the expected type,
+     * a default value is used.
+     *
+     * @param source The source object containing video format properties. This can be any object with
+     *               properties matching the fields of [VideoFormat].
+     * @return A [VideoFormat] object populated with values from the [source] object.
+     *
+     * @throws IllegalArgumentException If reflection fails to access a property.
+     * @throws ClassCastException If a property cannot be cast to the expected type.
+     *
+     * @see VideoFormat
+     */
+    suspend fun mapVideoFormat(source: Any): VideoFormat {
+        return withContext(Dispatchers.IO) {
+            VideoFormat(
+                asr = source::class.memberProperties.find { it.name == "asr" }
+                    ?.call(source) as? Int ?: 0,
+                tbr = source::class.memberProperties.find { it.name == "tbr" }
+                    ?.call(source) as? Int ?: 0,
+                abr = source::class.memberProperties.find { it.name == "abr" }
+                    ?.call(source) as? Int ?: 0,
+                format = source::class.memberProperties.find { it.name == "format" }
+                    ?.call(source) as? String,
+                formatId = source::class.memberProperties.find { it.name == "formatId" }
+                    ?.call(source) as? String,
+                formatNote = source::class.memberProperties.find { it.name == "formatNote" }
+                    ?.call(source) as? String,
+                ext = source::class.memberProperties.find { it.name == "ext" }
+                    ?.call(source) as? String,
+                preference = source::class.memberProperties.find { it.name == "preference" }
+                    ?.call(source) as? Int ?: 0,
+                vcodec = source::class.memberProperties.find { it.name == "vcodec" }
+                    ?.call(source) as? String,
+                acodec = source::class.memberProperties.find { it.name == "acodec" }
+                    ?.call(source) as? String,
+                width = source::class.memberProperties.find { it.name == "width" }
+                    ?.call(source) as? Int ?: 0,
+                height = source::class.memberProperties.find { it.name == "height" }
+                    ?.call(source) as? Int ?: 0,
+                fileSize = source::class.memberProperties.find { it.name == "fileSize" }
+                    ?.call(source) as? Long ?: 0,
+                fileSizeApproximate = source::class.memberProperties.find { it.name == "fileSizeApprox" }
+                    ?.call(source) as? Long ?: 0,
+                fps = source::class.memberProperties.find { it.name == "fps" }
+                    ?.call(source) as? Int ?: 0,
+                url = source::class.memberProperties.find { it.name == "url" }
+                    ?.call(source) as? String,
+                manifestUrl = source::class.memberProperties.find { it.name == "manifestUrl" }
+                    ?.call(source) as? String,
+                httpHeaders = source::class.memberProperties.find { it.name == "httpHeaders" }
+                    ?.call(source) as? Map<String, String>
+            )
+        }
+    }
+
+
+    /**
+     * Maps a list of video formats from a source object to a list of [VideoFormat] objects.
+     *
+     * This function retrieves the `formats` property from the [source] object, which is expected to be
+     * a list of format objects. Each format object is then mapped to a [VideoFormat] object using the
+     * [mapVideoFormat] function.
+     *
+     * @param source The source object containing a `formats` property. The `formats` property should
+     *               be a list of objects that can be mapped to [VideoFormat].
+     * @return A list of [VideoFormat] objects. If the `formats` property is not found or is `null`,
+     *         an empty list is returned.
+     *
+     * @throws IllegalArgumentException If reflection fails to access the `formats` property.
+     * @throws ClassCastException If the `formats` property cannot be cast to a list.
+     *
+     * @see VideoFormat
+     * @see mapVideoFormat
+     */
+    suspend fun mapSourceToVideoFormats(source: Any): List<VideoFormat> {
+        val formats = source::class.memberProperties.find { it.name == "formats" }
+            ?.call(source) as? ArrayList<*>
+
+        return formats?.mapNotNull { format ->
+            mapVideoFormat(format)
+        } ?: emptyList()
     }
 
     /**
