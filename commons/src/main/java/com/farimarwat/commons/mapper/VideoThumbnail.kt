@@ -1,5 +1,4 @@
-package com.farimarwat.helper.mapper
-
+package com.farimarwat.commons
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)

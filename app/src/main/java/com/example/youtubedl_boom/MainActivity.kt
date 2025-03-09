@@ -43,12 +43,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
-import com.farimarwat.helper.YoutubeDl
-import com.farimarwat.helper.mapper.VideoInfo
+import com.farimarwat.commons.VideoInfo
+import com.farimarwat.helper.RYoutubeDl
 
 import com.farimarwat.library.YoutubeDLResponse
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -57,7 +55,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDl.init(
+        RYoutubeDl.init(
             appContext = this,
             withFfmpeg = true,
             withAria2c = false,
@@ -116,11 +114,11 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            YoutubeDl.getInfo(
+                                            RYoutubeDl.getInfo(
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
-                                                    videoInfo = YoutubeDl.mapVideoInfo(it)
+                                                    videoInfo = it
                                                     for(item in videoInfo?.formats!!){
                                                         Timber.i("$item")
                                                     }
@@ -158,19 +156,19 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             if (url.isNotEmpty()) {
-                                                val request = YoutubeDl.createYoutubeDLRequest(url)
-                                                YoutubeDl.addOption(
+                                                val request = RYoutubeDl.createYoutubeDLRequest(url)
+                                                RYoutubeDl.addOption(
                                                     request,
                                                     "-o",
                                                     StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
                                                 )
-                                                YoutubeDl.addOption(request, "--no-part")
+                                                RYoutubeDl.addOption(request, "--no-part")
 
                                                 if (StoragePermissionHelper.checkAndRequestStoragePermission(
                                                         this@MainActivity
                                                     )
                                                 ) {
-                                                    YoutubeDl.download(
+                                                    RYoutubeDl.download(
                                                         request = request,
                                                         progressCallBack = { progress, eta, line ->
                                                             downloadProgress = progress
@@ -214,7 +212,7 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
-                                        YoutubeDl.destroyProcessById(
+                                        RYoutubeDl.destroyProcessById(
                                             processId
                                         )
                                     }, shape = RoundedCornerShape(12.dp),

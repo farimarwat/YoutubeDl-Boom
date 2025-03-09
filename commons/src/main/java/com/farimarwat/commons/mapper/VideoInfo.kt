@@ -1,4 +1,4 @@
-package com.farimarwat.helper.mapper
+ package com.farimarwat.commons
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -39,7 +39,7 @@ data class VideoInfo @JsonCreator constructor(
     @JsonProperty("categories") val categories: ArrayList<String>? = null,
     @JsonProperty("tags") val tags: ArrayList<String>? = null,
     @JsonProperty("requested_formats") val requestedFormats: ArrayList<VideoFormat>? = null,
-    @JsonProperty("formats") val formats: List<VideoFormat>? = null,
+    @JsonProperty("formats") val formats: ArrayList<VideoFormat>? = null,
     @JsonProperty("thumbnails") val thumbnails: ArrayList<VideoThumbnail>? = null,
     @JsonProperty("manifest_url") val manifestUrl: String? = null,
     @JsonProperty("url") val url: String? = null,

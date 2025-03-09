@@ -64,4 +64,5 @@ dependencies {
     implementation(libs.jackson.annotations)
     implementation(libs.jackson.databind)
     implementation(libs.timber)
+    implementation(project(":commons"))
 }

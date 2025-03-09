@@ -1,4 +1,4 @@
-package com.farimarwat.library
+package com.farimarwat.commons
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties

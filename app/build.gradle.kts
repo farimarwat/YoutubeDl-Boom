@@ -64,6 +64,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(project(":library"))
     implementation(project(":helper"))
+    implementation(project(":commons"))
     //implementation(libs.youtubedl.boom.helper)
     //implementation(libs.youtubedl.boom)
     implementation(libs.timber)

@@ -5,9 +5,9 @@ plugins {
     id("signing")
 }
 val PUBLISH_GROUP_ID by extra("io.github.farimarwat")
-val PUBLISH_VERSION by extra("1.1")
-val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom-helper")
-val PUBLISH_DESCRIPTION by extra("A helper library for youtubedl-boom")
+val PUBLISH_VERSION by extra("1.0")
+val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom-commons")
+val PUBLISH_DESCRIPTION by extra("Commons that are shared between helper and parent library")
 val PUBLISH_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom")
 val PUBLISH_LICENSE_NAME by extra("Apache 2.0 License")
 val PUBLISH_LICENSE_URL by extra("https://www.apache.org/licenses/LICENSE-2.0")
@@ -20,7 +20,7 @@ val PUBLISH_SCM_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom/tree/
 
 apply(from = "${rootProject.projectDir}/scripts/publish-module.gradle")
 android {
-    namespace = "com.farimarwat.helper"
+    namespace = "com.farimarwat.commons"
     compileSdk = 35
 
     defaultConfig {
@@ -65,5 +65,4 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.timber)
     implementation(libs.kotlin.reflect)
-    implementation(project(":commons"))
 }
