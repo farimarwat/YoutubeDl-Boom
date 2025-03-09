@@ -5,7 +5,7 @@ plugins {
     id("signing")
 }
 val PUBLISH_GROUP_ID by extra("io.github.farimarwat")
-val PUBLISH_VERSION by extra("1.3")
+val PUBLISH_VERSION by extra("1.4")
 val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom-helper")
 val PUBLISH_DESCRIPTION by extra("A helper library for youtubedl-boom")
 val PUBLISH_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom")

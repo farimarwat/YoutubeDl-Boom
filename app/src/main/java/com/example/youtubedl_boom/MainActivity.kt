@@ -48,6 +48,7 @@ import com.farimarwat.commons.YoutubeDLRequest
 import com.farimarwat.helper.RYoutubeDl
 
 import com.farimarwat.commons.YoutubeDLResponse
+import com.farimarwat.library.YoutubeDL
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -56,7 +57,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        RYoutubeDl.init(
+        YoutubeDL.init(
             appContext = this,
             withFfmpeg = true,
             withAria2c = false,
@@ -115,7 +116,7 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            RYoutubeDl.getInfo(
+                                            YoutubeDL.getInfo(
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
@@ -168,7 +169,7 @@ class MainActivity : ComponentActivity() {
                                                         this@MainActivity
                                                     )
                                                 ) {
-                                                    RYoutubeDl.download(
+                                                    YoutubeDL.download(
                                                         request = request,
                                                         progressCallBack = { progress, eta, line ->
                                                             downloadProgress = progress

@@ -17,7 +17,7 @@ import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
 
 
-object RYoutubeDl {
+object RYoutubeDL {
     /**
      * Initializes the YoutubeDL library in a background coroutine.
      *
