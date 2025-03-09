@@ -45,7 +45,6 @@ import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.commons.YoutubeDLRequest
-import com.farimarwat.helper.RYoutubeDl
 
 import com.farimarwat.commons.YoutubeDLResponse
 import com.farimarwat.library.YoutubeDL
@@ -213,7 +212,7 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
-                                        RYoutubeDl.destroyProcessById(
+                                        YoutubeDL.destroyProcessById(
                                             processId
                                         )
                                     }, shape = RoundedCornerShape(12.dp),

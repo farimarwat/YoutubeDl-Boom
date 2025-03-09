@@ -22,7 +22,7 @@ timber = "5.0.1"
 nexusVersion = "1.3.0"
 youtubedlBoom = "1.0.19"
 youtubedlBoomCommons = "1.1"
-youtubedlBoomHelper = "1.3"
+youtubedlBoomHelper = "1.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
