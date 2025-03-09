@@ -43,10 +43,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
+import com.farimarwat.commons.UpdateChannel
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.commons.YoutubeDLRequest
 
 import com.farimarwat.commons.YoutubeDLResponse
+import com.farimarwat.helper.RYoutubeDL
 import com.farimarwat.library.YoutubeDL
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -56,11 +58,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
 
-        YoutubeDL.init(
+        RYoutubeDL.init(
             appContext = this,
             withFfmpeg = true,
             withAria2c = false,
             onSuccess = {
+                RYoutubeDL.updateYoutubeDL(
+                    appContext = this, UpdateChannel.MASTER,
+                    onSuccess = {
+                        Timber.i("$it")
+                        Timber.i("Version: ${RYoutubeDL.version(this)} ${RYoutubeDL.versionName(this)}")
+                    },
+                    onError = {
+                        Timber.i("it")
+                    }
+                )
                 Timber.i("Initialized successfully")
             },
             onError = {
@@ -115,7 +127,7 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            YoutubeDL.getInfo(
+                                            RYoutubeDL.getInfo(
                                                 url = url,
                                                 onSuccess = {
                                                     showScanProgress = false
@@ -168,7 +180,7 @@ class MainActivity : ComponentActivity() {
                                                         this@MainActivity
                                                     )
                                                 ) {
-                                                    YoutubeDL.download(
+                                                    RYoutubeDL.download(
                                                         request = request,
                                                         progressCallBack = { progress, eta, line ->
                                                             downloadProgress = progress

@@ -1,6 +1,7 @@
 package com.farimarwat.helper
 
 import android.content.Context
+import com.farimarwat.commons.UpdateChannel
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.commons.YoutubeDLRequest
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -281,7 +282,7 @@ object RYoutubeDL {
      */
     fun updateYoutubeDL(
         appContext: Context,
-        updateChannel: Any,
+        updateChannel: UpdateChannel,
         onSuccess: suspend (Any) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ): Job {
@@ -333,76 +334,6 @@ object RYoutubeDL {
         }
     }
 
-    /**
-     * Maps an update status object to its corresponding name as a string.
-     *
-     * This function dynamically retrieves the `name` property of the `UpdateStatus` class
-     * from the `YoutubeDL` library.
-     *
-     * @param updateStatus The update status object to map.
-     * @return The name of the update status, or `null` if an error occurs.
-     * @throws IllegalStateException If the `name` property cannot be accessed.
-     */
-    suspend fun mapUpdateStatus(updateStatus: Any): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val updateStatusClass =
-                    Class.forName("com.farimarwat.library.YoutubeDL\$UpdateStatus").kotlin
-                val nameProperty = updateStatusClass.memberProperties.find { it.name == "name" }
-                if (nameProperty == null) {
-                    throw IllegalStateException("Failed to access 'name' property of UpdateStatus")
-                }
-                nameProperty.call(updateStatus) as String
-            } catch (e: Exception) {
-                Timber.e(e)
-                null
-            }
-        }
-    }
-
-    /**
-     * Retrieves the update channel instance corresponding to the provided string value.
-     *
-     * This function dynamically loads the `UpdateChannel` class from the `YoutubeDL` library
-     * and retrieves the appropriate update channel constant.
-     *
-     * @param value The string representation of the update channel (e.g., "STABLE", "NIGHTLY", "MASTER").
-     * @return The corresponding update channel instance.
-     * @throws IllegalArgumentException If the provided value is not a valid update channel.
-     * @throws IllegalStateException If the update channel instance cannot be accessed.
-     */
-    suspend fun getUpdateChannel(value: String): Any {
-        return withContext(Dispatchers.IO) {
-            try {
-                val updateChannelClass =
-                    Class.forName("com.farimarwat.library.YoutubeDL\$UpdateChannel").kotlin
-                val companionObject = updateChannelClass.companionObjectInstance
-                if (companionObject == null) {
-                    throw IllegalStateException("Failed to access UpdateChannel companion object")
-                }
-                val updateChannel = when (value) {
-                    "STABLE" -> companionObject::class.memberProperties.find { it.name == "_STABLE" }
-                        ?.call(companionObject)
-
-                    "NIGHTLY" -> companionObject::class.memberProperties.find { it.name == "_NIGHTLY" }
-                        ?.call(companionObject)
-
-                    "MASTER" -> companionObject::class.memberProperties.find { it.name == "_MASTER" }
-                        ?.call(companionObject)
-
-                    else -> throw IllegalArgumentException("Invalid UpdateChannel value: $value")
-                }
-
-                if (updateChannel == null) {
-                    throw IllegalStateException("Failed to access UpdateChannel instance: $value")
-                }
-
-                updateChannel
-            } catch (e: Exception) {
-                throw IllegalStateException("Failed to get UpdateChannel: ${e.message}")
-            }
-        }
-    }
 
     /**
      * Retrieves the version of the yt-dlp library.

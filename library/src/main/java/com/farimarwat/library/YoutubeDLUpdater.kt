@@ -2,6 +2,8 @@ package com.farimarwat.library
 
 import android.content.Context
 import com.farimarwat.common.SharedPrefsHelper
+import com.farimarwat.commons.UpdateChannel
+import com.farimarwat.commons.UpdateStatus
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import kotlinx.coroutines.Dispatchers
@@ -25,10 +27,10 @@ internal object YoutubeDLUpdater {
     @Throws(IOException::class, YoutubeDLException::class)
     internal fun update(
         appContext: Context?,
-        youtubeDLChannel: YoutubeDL.UpdateChannel = YoutubeDL.UpdateChannel.STABLE
-    ): YoutubeDL.UpdateStatus {
+        youtubeDLChannel: UpdateChannel = UpdateChannel.STABLE
+    ): UpdateStatus {
         val json = checkForUpdate(appContext!!, youtubeDLChannel)
-            ?: return YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE
+            ?: return UpdateStatus.ALREADY_UP_TO_DATE
         val downloadUrl = getDownloadUrl(json)
         val file = download(appContext, downloadUrl)
         val ytdlpDir = getYoutubeDLDir(
@@ -49,7 +51,7 @@ internal object YoutubeDLUpdater {
             file.delete()
         }
         updateSharedPrefs(appContext, getTag(json), getName(json))
-        return YoutubeDL.UpdateStatus.DONE
+        return UpdateStatus.DONE
     }
 
     private fun updateSharedPrefs(appContext: Context, tag: String, name: String) {
@@ -58,7 +60,7 @@ internal object YoutubeDLUpdater {
     }
 
     @Throws(IOException::class)
-    private fun checkForUpdate(appContext: Context, youtubeDLChannel: YoutubeDL.UpdateChannel): JsonNode? {
+    private fun checkForUpdate(appContext: Context, youtubeDLChannel: UpdateChannel): JsonNode? {
         val url = URL(youtubeDLChannel.apiUrl)
         val json = YoutubeDL.objectMapper.readTree(url)
         val newVersion = getTag(json)
@@ -91,7 +93,7 @@ internal object YoutubeDLUpdater {
         return downloadUrl
     }
 
-    suspend fun getYtdDownloadUrl(youtubeDLChannel: YoutubeDL.UpdateChannel):String {
+    suspend fun getYtdDownloadUrl(youtubeDLChannel: UpdateChannel):String {
         return withContext(Dispatchers.IO){
             val url = URL(youtubeDLChannel.apiUrl)
             getDownloadUrl(YoutubeDL.objectMapper.readTree(url))

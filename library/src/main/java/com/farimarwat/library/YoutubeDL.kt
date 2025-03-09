@@ -6,6 +6,8 @@ import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
 import com.farimarwat.common.utils.ZipUtils.unzip
+import com.farimarwat.commons.UpdateChannel
+import com.farimarwat.commons.UpdateStatus
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.commons.YoutubeDLRequest
 import com.farimarwat.commons.YoutubeDLResponse
@@ -476,30 +478,6 @@ object YoutubeDL {
 
     fun versionName(appContext: Context?): String? {
         return YoutubeDLUpdater.versionName(appContext)
-    }
-
-    enum class UpdateStatus {
-        DONE, ALREADY_UP_TO_DATE
-    }
-
-    open class UpdateChannel(val apiUrl: String) {
-        object STABLE : UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
-        object NIGHTLY :
-            UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest")
-
-        object MASTER :
-            UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-master-builds/releases/latest")
-
-        companion object {
-            @JvmField
-            val _STABLE: STABLE = STABLE
-
-            @JvmField
-            val _NIGHTLY: NIGHTLY = NIGHTLY
-
-            @JvmField
-            val _MASTER: MASTER = MASTER
-        }
     }
 
 
