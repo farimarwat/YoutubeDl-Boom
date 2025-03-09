@@ -1,4 +1,4 @@
-### ⚠️ Some major changes have been made in version 1.0.19. Before updating, please review the usage guide again; otherwise, you may encounter import issues.
+### ⚠️ Some major changes have been made in version 1.0.20 for improving performance in helper library. Before updating, please review the usage guide again; otherwise, you may encounter import issues.
 
 ## 🎩 Acknowledgment & Credits  
 
@@ -44,18 +44,20 @@ With these improvements, **youtubedl-boom** is now more efficient, lightweight, 
 
 ## Installation
 
-To use `youtubedl-boom` in your Android project, add the following dependency in your `build.gradle.kts`:
+To use `youtubedl-boom` in your Android project, add the following two dependencies in your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.18")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.20")
+    implementation("io.github.farimarwat:youtubedl-boom-commons:1.2")
 }
 ```
+
 
 To use `helper API` (Optional - In case of DFM). Details are below in the #2 section
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom-helper:1.1")
+    implementation("io.github.farimarwat:youtubedl-boom-helper:1.5")
 }
 ```
 
@@ -78,7 +80,7 @@ Include this in app's manifest
 
 #  📥 #1 YoutubeDl Setup Guide without DFM
 
-**Note: If you are packaging the `youtubedl-boom` with the app then there is no need to use `Helper API` but it will increase the apk size**
+**Note: If you are packaging the `youtubedl-boom` with the app then there is no need to use `Helper API` but direct packaging will increase the apk size**
 
 ## 🛠 Step 1: Declare a Global Variable  
 We create a **nullable** global variable to store the `YoutubeDL` instance.  
@@ -206,11 +208,13 @@ val job = download(
 
 #  📥 #2 YoutubeDl Setup Guide with DFM
 
+**Note:Every call is same like above but add `R` before `YoutubeDL` object**
+
 Declare a global flag `isInitialized` (may be in app class) and set it after successful initialization.  
 
 ## Initialization  
 ```kotlin
-YoutubeDl.init(
+RYoutubeDL.init(
     appContext = this,
     withFfmpeg = true, // Default is false
     withAria2c = false, // Default is false
@@ -223,21 +227,20 @@ YoutubeDl.init(
 )
 ```
 Use the parameter `withFfmpeg` only if you want to download files with `FFMPEG`, and the same applies to `Aria2c`.  
-**Note:** This `YoutubeDl` object is from the `helper` package. Do not confuse it with `YoutubeDl` from the `library` package.
 
 
 ## Getting Video Info  
 ```kotlin
-YoutubeDl.getInfo(
+RYoutubeDL.getInfo(
     url = url,
-    onSuccess = {
-        val videoInfo = YoutubeDl.mapVideoInfo(it)
+    onSuccess = { videoInfo ->
+        Timber.i(videoInfo.title)
     },
     onError = { Timber.i(it) }
 )
 ```
 - `url`: A string URL for supported downloads.  
-- `onSuccess`: Returns a `VideoInfo` object from the library package. To access it, we first need to convert it using the `mapVideoInfo()` function.  
+- `onSuccess`: Returns a `VideoInfo` object
 
 **Note:** Never forget to check `isInitialized` to avoid unexpected behavior.  
 
@@ -247,26 +250,24 @@ YoutubeDl.getInfo(
 First, create a download request:  
 
 ```kotlin
-val request = YoutubeDl.createYoutubeDLRequest(url)
+val request = YoutubeDLRequest(url)
 ```
 
-Next, add options. There are two ways: using a `Key-Value` pair or only a `Value`. Both are illustrated below:  
+Next, add options:
 
 ```kotlin
-YoutubeDl.addOption(
-    request,
+request.addOption(
     "-o",
-    StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
+    "${StoragePermissionHelper.downloadDir.absolutePath}/%(title)s.%(ext)s"
 )
-YoutubeDl.addOption(request, "--no-part")
-```
+request.addOption("--no-part")
 
-**Note:** `request` is passed witch we create above ☝️ 
+```
 
 Finally, call the `download` function:  
 
 ```kotlin
-YoutubeDl.download(
+RYoutubeDL.download(
     request = request,
     progressCallBack = { progress, eta, line ->
         // Handle progress updates
@@ -285,25 +286,17 @@ YoutubeDl.download(
 
 ### To destroy a process:
 ```kotlin
-YoutubeDl.destroyProcessById(processId)
+RYoutubeDL.destroyProcessById(processId)
 ```
 
 ### Update  
-
-To update, first, create the update channel:  
-
+ 
 ```kotlin
-val updateChannel = YoutubeDl.getUpdateChannel(YoutubeDl.CHANNEL_MASTER)
-```
-
-Next, pass this channel to the update function:  
-
-```kotlin
-YoutubeDl.updateYoutubeDL(
+RYoutubeDL.updateYoutubeDL(
     appContext = this,
-    updateChannel = updateChannel,
-    onSuccess = {
-        val status = YoutubeDl.mapUpdateStatus(it)
+    updateChannel = UpdateChannel.MASTER,
+    onSuccess = { status ->
+        
     },
     onError = {
         Timber.i(it)
@@ -311,18 +304,16 @@ YoutubeDl.updateYoutubeDL(
 )
 ```
 
-`mapUpdateStatus` is used to convert the status from the library package.  
-
 ### Get version and versionName
 ```kotlin
-val version = YoutubeDl.version(this)
-val versionName = YoutubeDl.versionName(this)
+val version = RYoutubeDL.version(this)
+val versionName = RYoutubeDL.versionName(this)
 
 ```
 
 
   ### Version History
-  **youtubedl-boom:1.0.19**
+  **youtubedl-boom:1.0.20**
   - Moved YoutubeDlRequest, YoutubeDlOption, YoutubeDlResponse, VideoInfo, VideoFormat to commons library
   - The above changes made because these are common between youtubedl-helper and youtubedl-boom
   
