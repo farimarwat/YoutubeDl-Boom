@@ -56,7 +56,7 @@ dependencies {
 ```
 
 Incase of DFM, include the above ☝️  in DFM level and below in app's level:
-To use `helper API` (Optional - In case of DFM). Details are below in the #2 section
+ Details are below in the #2 section
 ```kotlin
 dependencies {
     implementation("io.github.farimarwat:youtubedl-boom-helper:1.6")
