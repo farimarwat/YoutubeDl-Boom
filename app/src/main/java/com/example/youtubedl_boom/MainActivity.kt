@@ -50,6 +50,8 @@ import com.farimarwat.commons.YoutubeDLRequest
 import com.farimarwat.commons.YoutubeDLResponse
 import com.farimarwat.helper.RYoutubeDL
 import com.farimarwat.library.YoutubeDL
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -59,20 +61,11 @@ class MainActivity : ComponentActivity() {
         Timber.plant(Timber.DebugTree())
 
         RYoutubeDL.init(
-            appContext = this,
+            appContext = this@MainActivity,
             withFfmpeg = true,
             withAria2c = false,
             onSuccess = {
-                RYoutubeDL.updateYoutubeDL(
-                    appContext = this, UpdateChannel.MASTER,
-                    onSuccess = {
-                        Timber.i("$it")
-                        Timber.i("Version: ${RYoutubeDL.version(this)} ${RYoutubeDL.versionName(this)}")
-                    },
-                    onError = {
-                        Timber.i("it")
-                    }
-                )
+
                 Timber.i("Initialized successfully")
             },
             onError = {

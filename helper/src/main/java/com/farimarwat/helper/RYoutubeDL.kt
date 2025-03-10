@@ -55,7 +55,7 @@ object RYoutubeDL {
                     appContext,
                     withFfmpeg,
                     withAria2c,
-                    { youtubeDL: Any ->
+                    { youtubeDL: Any, _:Any ->
                         CoroutineScope(Dispatchers.Main).launch {
                             onSuccess(youtubeDLInstance)
                         }
