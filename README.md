@@ -44,6 +44,8 @@ With these improvements, **youtubedl-boom** is now more efficient, lightweight, 
 
 ## Installation
 
+without DFM. use below in app'level gradle file:
+
 To use `youtubedl-boom` in your Android project, add the following two dependencies in your `build.gradle.kts`:
 
 ```kotlin
@@ -53,11 +55,12 @@ dependencies {
 }
 ```
 
-
+Incase of DFM, include the above ☝️  in DFM level and below in app's level:
 To use `helper API` (Optional - In case of DFM). Details are below in the #2 section
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom-helper:1.5")
+    implementation("io.github.farimarwat:youtubedl-boom-helper:1.6")
+    implementation("io.github.farimarwat:youtubedl-boom-commons:1.2")
 }
 ```
 
