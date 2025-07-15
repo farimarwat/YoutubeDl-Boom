@@ -1,27 +1,13 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("maven-publish")
-    id("signing")
+    id ("com.vanniktech.maven.publish") version "0.33.0"
 }
-val PUBLISH_GROUP_ID by extra("io.github.farimarwat")
-val PUBLISH_VERSION by extra("1.0.3")
-val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom")
-val PUBLISH_DESCRIPTION by extra("An android library based on youtubedl-android, developed by JunkFood, to download videos from social websites")
-val PUBLISH_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom")
-val PUBLISH_LICENSE_NAME by extra("Apache 2.0 License")
-val PUBLISH_LICENSE_URL by extra("https://www.apache.org/licenses/LICENSE-2.0")
-val PUBLISH_DEVELOPER_ID by extra("farimarwat")
-val PUBLISH_DEVELOPER_NAME by extra("Farman Ullah Marwat")
-val PUBLISH_DEVELOPER_EMAIL by extra("farimarwat@gmail.com")
-val PUBLISH_SCM_CONNECTION by extra("scm:git:github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_DEVELOPER_CONNECTION by extra("scm:git:ssh://github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom/tree/main")
 
-apply(from = "${rootProject.projectDir}/scripts/publish-module.gradle")
 android {
+    ndkVersion = "29.0.13599879"
     namespace = "com.farimarwat.library"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
@@ -51,7 +37,45 @@ android {
         buildConfig = true
     }
 }
+mavenPublishing{
+    coordinates(
+        groupId = "io.github.farimarwat",
+        artifactId = "youtubedl-boom",
+        version = "1.0.4"
+    )
+    pom {
+        name.set("KrossMap")
+        description.set("An android library based on youtubedl-android, developed by JunkFood, to download videos from social websites")
+        inceptionYear.set("2025")
+        url.set("https://github.com/farimarwat/YoutubeDl-Boom")
 
+        licenses {
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+
+        // Specify developers information
+        developers {
+            developer {
+                id.set("farimarwat")
+                name.set("Farman Ullah Khan Marwat")
+                email.set("farimarwat@gmail.com")
+            }
+        }
+
+        // Specify SCM information
+        scm {
+            url.set("https://github.com/farimarwat/YoutubeDl-Boom")
+        }
+    }
+
+    publishToMavenCentral()
+
+    // Enable GPG signing for all publications
+    signAllPublications()
+}
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
