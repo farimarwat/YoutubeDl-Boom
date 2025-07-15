@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.youtubedl_boom"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.youtubedl_boom"
