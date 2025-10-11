@@ -50,7 +50,7 @@ To use `youtubedl-boom` in your Android project, add the following two dependenc
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.20")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.22")
     implementation("io.github.farimarwat:youtubedl-boom-commons:1.2")
 }
 ```
