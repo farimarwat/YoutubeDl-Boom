@@ -3,7 +3,7 @@ package com.farimarwat.common
 import android.content.Context
 
 object SharedPrefsHelper {
-    private const val sharedPrefsName = "youtubedl-android"
+    private const val sharedPrefsName = "youtubeDl-android"
     @JvmStatic
     fun update(appContext: Context, key: String?, value: String?) {
         val pref = appContext.getSharedPreferences(sharedPrefsName, Context.MODE_PRIVATE)

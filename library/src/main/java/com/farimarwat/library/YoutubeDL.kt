@@ -5,8 +5,12 @@ import android.os.Build
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
-import com.farimarwat.downloadmanager.YoutubeDlFileManager
 import com.farimarwat.common.utils.ZipUtils.unzip
+import com.farimarwat.commons.UpdateChannel
+import com.farimarwat.commons.UpdateStatus
+import com.farimarwat.commons.VideoInfo
+import com.farimarwat.commons.YoutubeDLRequest
+import com.farimarwat.commons.YoutubeDLResponse
 import com.farimarwat.ffmpeg.FFmpeg
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.farimarwat.ffmpeg.FfmpegStreamExtractor
@@ -17,11 +21,11 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import org.apache.commons.io.FileUtils
-import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
@@ -38,12 +42,32 @@ object YoutubeDL {
     private var ENV_SSL_CERT_FILE: String? = null
     private var ENV_PYTHONHOME: String? = null
     private var TMPDIR: String = ""
-    private val idProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
+    private val downloadIdProcessMap = Collections.synchronizedMap(HashMap<String, Process>())
 
+    /**
+     * Initializes the YoutubeDL library asynchronously.
+     *
+     * This function performs the initialization of the YoutubeDL library, optionally including
+     * FFmpeg and Aria2c. It executes in a background coroutine and invokes the appropriate callback
+     * on success or failure.
+     *
+     * - If `withFfmpeg` is `true`, FFmpeg is initialized.
+     * - If `withAria2c` is `true`, Aria2c is initialized.
+     * - If an error occurs during initialization, the `onError` callback is triggered.
+     * - Upon successful initialization, the `onSuccess` callback is called on the main thread.
+     *
+     * @param appContext The application context required for initialization.
+     * @param withFfmpeg Boolean flag indicating whether to initialize FFmpeg. Defaults to `false`.
+     * @param withAria2c Boolean flag indicating whether to initialize Aria2c. Defaults to `false`.
+     * @param onSuccess Callback invoked on successful initialization, providing the initialized [YoutubeDL] instance.
+     * @param onError Callback invoked if an error occurs during initialization, receiving the encountered [Throwable].
+     * @return A [Job] representing the coroutine handling the initialization process.
+     */
     fun init(
         appContext: Context,
-        fileManager: YoutubeDlFileManager = YoutubeDlFileManager,
-        onSuccess: suspend (YoutubeDL) -> Unit = {},
+        withFfmpeg:Boolean = false,
+        withAria2c:Boolean = false,
+        onSuccess:suspend (YoutubeDL) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ): Job {
         val exception = CoroutineExceptionHandler { _, throwable ->
@@ -52,33 +76,19 @@ object YoutubeDL {
         val job = Job()
         val scope = CoroutineScope(Dispatchers.IO + job + exception)
         return scope.launch {
-            if (fileManager.isReady(appContext)) {
-                performInit(appContext)
-                if (fileManager.isFfmpegEnabled()) {
-                    FFmpeg.init(appContext)
-                }
-                if (fileManager.isAria2cEnabled()) {
-                    Aria2c.init(appContext)
-                }
-                withContext(Dispatchers.Main) {
-                    onSuccess(this@YoutubeDL)
-                }
-            } else {
-                fileManager.downloadLibFiles { success, error ->
-                    if (success) {
-                        performInit(appContext)
-                        withContext(Dispatchers.Main) {
-                            onSuccess(this@YoutubeDL)
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            onSuccess(this@YoutubeDL)
-                        }
-                    }
-                }
+            performInit(appContext)
+            if (withFfmpeg) {
+                FFmpeg.init(appContext)
+            }
+            if (withAria2c) {
+                Aria2c.init(appContext)
+            }
+            withContext(Dispatchers.Main) {
+                onSuccess(this@YoutubeDL)
             }
         }
     }
+
 
     private fun performInit(appContext: Context) {
         if (initialized) return
@@ -100,17 +110,17 @@ object YoutubeDL {
         ENV_PYTHONHOME = pythonDir.absolutePath + "/usr"
         TMPDIR = appContext.cacheDir.absolutePath
         initPython(appContext, pythonDir)
-        init_ytdlp(ytdlpDir)
+        init_ytdlp(appContext,ytdlpDir)
         initialized = true
     }
 
     @Throws(YoutubeDLException::class)
-    internal fun init_ytdlp(ytdlpDir: File) {
+    internal fun init_ytdlp(appContext: Context,ytdlpDir: File) {
         if (!ytdlpDir.exists()) ytdlpDir.mkdirs()
         val ytdlpBinary = File(ytdlpDir, ytdlpBin)
         if (!ytdlpBinary.exists()) {
             try {
-                val inputStream = File(YoutubeDlFileManager.DOWNLOAD_DIR, ytdlpBin).inputStream()
+                val inputStream = appContext.resources.openRawResource(R.raw.ytdlp)
                 FileUtils.copyInputStreamToFile(inputStream, ytdlpBinary)
             } catch (e: Exception) {
                 FileUtils.deleteQuietly(ytdlpDir)
@@ -121,7 +131,7 @@ object YoutubeDL {
 
     @Throws(YoutubeDLException::class)
     internal fun initPython(appContext: Context, pythonDir: File) {
-        val pythonLib = File(YoutubeDlFileManager.DOWNLOAD_DIR, pythonLibName)
+        val pythonLib = File(appContext.applicationInfo.nativeLibraryDir, pythonLibName)
         val pythonSize = pythonLib.length().toString()
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
             FileUtils.deleteQuietly(pythonDir)
@@ -153,14 +163,50 @@ object YoutubeDL {
     }
 
     /**
-     * Retrieves video information from the given URL.
+     * Fetches video information from the provided URL using YoutubeDL.
      *
-     * @param url The URL of the video.
-     * @param onSuccess Callback function invoked with the retrieved [VideoInfo] on success.
-     * @param onError Callback function invoked with an error [Throwable] if retrieval fails.
+     * This function creates a [YoutubeDLRequest] for the given URL and retrieves metadata such as
+     * video title, duration, and available formats. It executes asynchronously and invokes the
+     * appropriate callback upon completion.
+     *
+     * - If the request succeeds, the `onSuccess` callback is triggered with a [VideoInfo] instance.
+     * - If an error occurs, the `onError` callback is triggered with the encountered [Throwable].
+     *
+     * @param url The URL of the video to retrieve information for.
+     * @param onSuccess Callback invoked upon successful retrieval of video information, providing a [VideoInfo] instance.
+     * @param onError Callback invoked if an error occurs during the process, receiving the encountered [Throwable].
      */
     fun getInfo(
         url: String,
+        onSuccess: (VideoInfo) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ) {
+        val request = YoutubeDLRequest(url)
+        getInfo(
+            request = request,
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Retrieves video information from a given [YoutubeDLRequest].
+     *
+     * This function executes the YoutubeDL command-line tool in a background coroutine to fetch
+     * metadata about a video, such as its title, duration, and available formats. The result is
+     * parsed into a [VideoInfo] object.
+     *
+     * - The function runs the process using Python and Youtube-DLP.
+     * - It captures both standard output and error streams.
+     * - If successful, the parsed [VideoInfo] is returned via the `onSuccess` callback.
+     * - If an error occurs at any stage, the `onError` callback is triggered with the encountered [Throwable].
+     *
+     * @param request The [YoutubeDLRequest] containing the video URL and options.
+     * @param onSuccess Callback invoked with the retrieved [VideoInfo] upon successful execution.
+     * @param onError Callback invoked if an error occurs during the process, providing the encountered [Throwable].
+     */
+    fun getInfo(
+        request: YoutubeDLRequest,
         onSuccess: (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {}
     ) {
@@ -170,7 +216,6 @@ object YoutubeDL {
             onError(throwable)
         }
         CoroutineScope(Dispatchers.IO + exception).launch {
-            val request = YoutubeDLRequest(url)
             request.addOption("--dump-json")
             try {
                 assertInit()
@@ -232,17 +277,24 @@ object YoutubeDL {
     class CanceledException : Exception()
 
     /**
-     * Downloads a video using the given request.
+     * Downloads media using youtube-dl with the provided request.
      *
-     * @param request The [YoutubeDLRequest] containing download parameters.
-     * @param pId Optional process ID to track the download.
-     * @param progressCallBack Callback function for reporting progress with percentage, elapsed time, and speed.
-     * @param onStartProcess Callback function invoked when the process starts with the process ID.
-     * @param onEndProcess Callback function invoked when the process ends with the [YoutubeDLResponse].
-     * @param onError Callback function invoked if an error occurs during the download.
+     * @param request The YoutubeDLRequest containing the URL and options for the download.
+     * @param pId Optional process ID to track the download; if null, a new UUID is generated.
+     * @param progressCallBack Optional callback function that provides progress updates:
+     *        - [Float]: Download progress percentage.
+     *        - [Long]: Downloaded bytes.
+     *        - [String]: Status message.
+     * @param onStartProcess Callback invoked when the download process starts, receiving the process ID.
+     * @param onEndProcess Callback invoked when the download completes successfully, returning a [YoutubeDLResponse].
+     * @param onError Callback invoked if an error occurs, receiving the thrown [Throwable].
      * @return A [Job] representing the coroutine handling the download process.
-     * @throws YoutubeDLException If an error occurs during execution.
+     *
+     * The function ensures initialization and prevents duplicate process IDs.
+     * It modifies the request options to optimize downloads and uses a [ProcessBuilder] to execute youtube-dl.
+     * The download process output is captured, and errors are handled gracefully.
      */
+
     fun download(
         request: YoutubeDLRequest,
         pId: String? = null,
@@ -261,7 +313,7 @@ object YoutubeDL {
             try {
                 val processId = if (pId.isNullOrEmpty()) UUID.randomUUID().toString() else pId
                 assertInit()
-                if (idProcessMap.containsKey(processId)) {
+                if (downloadIdProcessMap.containsKey(processId)) {
                     throw YoutubeDLException("Process ID already exists")
                 }
 
@@ -301,7 +353,7 @@ object YoutubeDL {
                 withContext(Dispatchers.Main) {
                     onStartProcess(processId)
                 }
-                idProcessMap[processId] = process
+                downloadIdProcessMap[processId] = process
                 streamProcessExtractor = StreamProcessExtractor()
                 streamGobbler = StreamGobbler()
                 val stdOutProcessor = streamProcessExtractor?.readStream(
@@ -329,7 +381,7 @@ object YoutubeDL {
                     process.waitFor()
                 } catch (e: InterruptedException) {
                     process.destroy()
-                    idProcessMap.remove(processId)
+                    downloadIdProcessMap.remove(processId)
                     throw e
                 }
 
@@ -337,17 +389,17 @@ object YoutubeDL {
                 val err = errBuffer.toString()
 
                 if (exitCode > 0) {
-                    if (!idProcessMap.containsKey(processId)) {
+                    if (!downloadIdProcessMap.containsKey(processId)) {
                         val canceledException = CanceledException()
                         throw canceledException
                     }
                     if (!ignoreErrors(request, out)) {
-                        idProcessMap.remove(processId)
+                        downloadIdProcessMap.remove(processId)
                         val youtubeDLException = YoutubeDLException(err)
                         throw youtubeDLException
                     }
                 }
-                idProcessMap.remove(processId)
+                downloadIdProcessMap.remove(processId)
                 val elapsedTime = System.currentTimeMillis() - startTime
                 val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
                 withContext(Dispatchers.Main) {
@@ -364,14 +416,18 @@ object YoutubeDL {
     }
 
     /**
-     * Terminates a running process by its ID.
+     * Destroys the download process associated with the given process ID.
      *
      * @param id The unique identifier of the process to be terminated.
-     * @return `true` if the process was successfully destroyed, `false` if the process was not found or could not be terminated.
+     * @return `true` if the process was successfully destroyed, `false` if no matching process was found.
+     *
+     * This function looks up the process in [downloadIdProcessMap], terminates it,
+     * and removes it from the map. If running on Android O (API 26+) or higher,
+     * it checks whether the process is still alive before destroying it.
      */
     fun destroyProcessById(id: String): Boolean {
-        if (idProcessMap.containsKey(id)) {
-            val pythonProcess = idProcessMap[id]
+        if (downloadIdProcessMap.containsKey(id)) {
+            val pythonProcess = downloadIdProcessMap[id]
             pythonProcess?.let { pythonProcess.getProcessId().getChildProcessId().killProcess() }
             var alive = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -379,14 +435,26 @@ object YoutubeDL {
             }
             if (alive) {
                 pythonProcess!!.destroy()
-                idProcessMap.remove(id)
+                downloadIdProcessMap.remove(id)
                 return true
             }
         }
         return false
     }
 
-    @Throws(YoutubeDLException::class)
+    /**
+     * Returns the count of downloads that are currently in progress.
+     *
+     * This function checks the size of the `downloadIdProcessMap`, which keeps track
+     * of active downloads, and returns the total number of ongoing downloads.
+     *
+     * @return The number of downloads currently in progress.
+     */
+    fun getInProgressDownloadsCount(): Int {
+        return downloadIdProcessMap.size
+    }
+
+
     suspend fun updateYoutubeDL(
         appContext: Context,
         updateChannel: UpdateChannel = UpdateChannel.STABLE,
@@ -394,7 +462,6 @@ object YoutubeDL {
         onError: (Throwable) -> Unit = {}
     ) {
         withContext(Dispatchers.IO) {
-            if (!YoutubeDlFileManager.isReady(appContext)) onError(YoutubeDLException("Upddate Error: Kindly initialize YoutubeDl first"))
             assertInit()
             try {
                 val status = YoutubeDLUpdater.update(appContext, updateChannel)
@@ -413,32 +480,8 @@ object YoutubeDL {
         return YoutubeDLUpdater.versionName(appContext)
     }
 
-    enum class UpdateStatus {
-        DONE, ALREADY_UP_TO_DATE
-    }
 
-    open class UpdateChannel(val apiUrl: String) {
-        object STABLE : UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
-        object NIGHTLY :
-            UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-nightly-builds/releases/latest")
-
-        object MASTER :
-            UpdateChannel("https://api.github.com/repos/yt-dlp/yt-dlp-master-builds/releases/latest")
-
-        companion object {
-            @JvmField
-            val _STABLE: STABLE = STABLE
-
-            @JvmField
-            val _NIGHTLY: NIGHTLY = NIGHTLY
-
-            @JvmField
-            val _MASTER: MASTER = MASTER
-        }
-    }
-
-
-    const val baseName = "youtubedl-android"
+    const val baseName = "youtubeDl-android"
     private const val packagesRoot = "packages"
     private const val pythonBinName = "libpython.so"
     private const val pythonLibName = "libpython.zip.so"

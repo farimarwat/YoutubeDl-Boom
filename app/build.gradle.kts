@@ -17,8 +17,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
-            abiFilters.add("x86")
-            abiFilters.add("x86_64")
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
         }
@@ -56,6 +54,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -63,8 +62,13 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    //implementation(project(":library"))
+    implementation(project(":library"))
+    implementation(project(":helper"))
+    implementation(project(":commons"))
+   /* implementation(libs.youtubedl.boom.helper)
     implementation(libs.youtubedl.boom)
+    implementation(libs.youtubedl.boom.commons)*/
+
     implementation(libs.timber)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)

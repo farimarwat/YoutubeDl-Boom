@@ -29,7 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,11 +43,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.youtubedl_boom.ui.theme.YoutubeDlBoomTheme
-import com.farimarwat.downloadmanager.YoutubeDlFileManager
-import com.farimarwat.library.VideoInfo
+import com.farimarwat.commons.UpdateChannel
+import com.farimarwat.commons.VideoInfo
+import com.farimarwat.commons.YoutubeDLRequest
+
+import com.farimarwat.commons.YoutubeDLResponse
+import com.farimarwat.helper.RYoutubeDL
 import com.farimarwat.library.YoutubeDL
-import com.farimarwat.library.YoutubeDLRequest
-import com.farimarwat.library.YoutubeDLResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -56,36 +59,26 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Timber.plant(Timber.DebugTree())
-        var youtubeDl: YoutubeDL? = null
+
+        RYoutubeDL.init(
+            appContext = this@MainActivity,
+            withFfmpeg = true,
+            withAria2c = false,
+            onSuccess = {
+
+                Timber.i("Initialized successfully")
+            },
+            onError = {
+                Timber.e(it)
+            }
+        )
+
         enableEdgeToEdge()
         setContent {
             var videoInfo by remember { mutableStateOf<VideoInfo?>(null) }
-            var youtubeDLResponse:YoutubeDLResponse? = null
+            var youtubeDLResponse: YoutubeDLResponse? = null
             var processId = ""
             val scope = rememberCoroutineScope()
-
-
-            LaunchedEffect(Unit) {
-                val manager = YoutubeDlFileManager
-                    .Builder()
-                    .withFFMpeg()
-                    .build()
-
-                val job = YoutubeDL.getInstance().init(
-                    appContext = this@MainActivity,
-                    fileManager = manager,
-                    onSuccess = {
-                        Timber.i("Initialized successfully")
-                        youtubeDl = it
-                    },
-                    onError = {
-                        Timber.e(it)
-                    }
-                )
-            }
-
-
-
 
             YoutubeDlBoomTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -104,7 +97,10 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp))
+                                    .background(
+                                        MaterialTheme.colorScheme.surface,
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 OutlinedTextField(
@@ -124,16 +120,17 @@ class MainActivity : ComponentActivity() {
                                     onClick = {
                                         scope.launch {
                                             showScanProgress = true
-                                            youtubeDl?.let {
-                                                it.getInfo(
-                                                    url = url,
-                                                    onSuccess = {
-                                                        videoInfo = it
-                                                        showScanProgress = false
-                                                    },
-                                                    onError = { Timber.i(it) }
-                                                )
-                                            }
+                                            RYoutubeDL.getInfo(
+                                                url = url,
+                                                onSuccess = {
+                                                    showScanProgress = false
+                                                    videoInfo = it
+                                                    for(item in videoInfo?.formats!!){
+                                                        Timber.i("$item")
+                                                    }
+                                                },
+                                                onError = { Timber.i(it) }
+                                            )
                                         }
                                     },
                                     modifier = Modifier.size(50.dp)
@@ -164,32 +161,36 @@ class MainActivity : ComponentActivity() {
                                 Button(
                                     onClick = {
                                         scope.launch {
-                                            if(url.isNotEmpty()){
-                                                youtubeDl?.let {
-                                                    val request = YoutubeDLRequest(url)
-                                                    request.addOption("-o", StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s");
-                                                    request.addOption("--downloader","ffmpeg")
-                                                    if(StoragePermissionHelper.checkAndRequestStoragePermission(this@MainActivity)){
-                                                        it.download(
-                                                            request = request,
-                                                            pId = processId,
-                                                            progressCallBack = { progress, eta,line ->
-                                                                downloadProgress = progress
-                                                                downloadLine = line
-                                                                Timber.i("line: $line")
-                                                            },
-                                                            onStartProcess = { id ->
-                                                                processId = id
-                                                                Timber.i("ProcessId: ${id}")
-                                                            },
-                                                            onEndProcess = { response ->
-                                                                Timber.i("YoutubeDlResponse: $response")
-                                                            },
-                                                            onError = { error ->
-                                                                Timber.e("OnExecute: $error")
-                                                            }
-                                                        )
-                                                    }
+                                            if (url.isNotEmpty()) {
+                                                val request = YoutubeDLRequest(url)
+                                                request.addOption(
+                                                    "-o",
+                                                    StoragePermissionHelper.downloadDir.getAbsolutePath() + "/%(title)s.%(ext)s"
+                                                )
+                                                request.addOption("--no-part")
+
+                                                if (StoragePermissionHelper.checkAndRequestStoragePermission(
+                                                        this@MainActivity
+                                                    )
+                                                ) {
+                                                    RYoutubeDL.download(
+                                                        request = request,
+                                                        progressCallBack = { progress, eta, line ->
+                                                            downloadProgress = progress
+                                                            downloadLine = line
+                                                            Timber.i("line: $line")
+                                                        },
+                                                        onStartProcess = { id ->
+                                                            processId = id
+                                                            Timber.i("ProcessId: ${id}")
+                                                        },
+                                                        onEndProcess = { response ->
+                                                            Timber.i("YoutubeDlResponse: $response")
+                                                        },
+                                                        onError = { error ->
+                                                            Timber.e("OnExecute: $error")
+                                                        }
+                                                    )
                                                 }
                                             }
                                         }
@@ -202,24 +203,31 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxWidth()
                                         .height(56.dp)
                                 ) {
-                                    Icon(painter = painterResource(R.drawable.baseline_download_24), contentDescription = "Download")
+                                    Icon(
+                                        painter = painterResource(R.drawable.baseline_download_24),
+                                        contentDescription = "Download"
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Download", style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = "Download",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
                                         Timber.i("YoutubeDlResponse: ${youtubeDLResponse}")
-                                        youtubeDl?.destroyProcessById(
+                                        YoutubeDL.destroyProcessById(
                                             processId
                                         )
-                                    },shape = RoundedCornerShape(12.dp),
+                                    }, shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(56.dp)){
+                                        .height(56.dp)
+                                ) {
                                     Text("Cancel")
                                 }
                                 Spacer(modifier = Modifier.height(16.dp))
