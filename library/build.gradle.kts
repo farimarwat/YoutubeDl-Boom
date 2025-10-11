@@ -14,6 +14,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        externalNativeBuild {
+            cmake {
+                arguments.addAll(
+                    listOf(
+                        "-DANDROID_LD_USE_16KB_PAGES=ON",
+                        "-DANDROID_ALLOW_UNDEFINED_SYMBOLS=ON"
+                    )
+                )
+            }
+        }
+
+
     }
 
     buildTypes {
@@ -41,10 +53,10 @@ mavenPublishing{
     coordinates(
         groupId = "io.github.farimarwat",
         artifactId = "youtubedl-boom",
-        version = "1.0.4"
+        version = "1.0.22"
     )
     pom {
-        name.set("KrossMap")
+        name.set("youtubedl-boom")
         description.set("An android library based on youtubedl-android, developed by JunkFood, to download videos from social websites")
         inceptionYear.set("2025")
         url.set("https://github.com/farimarwat/YoutubeDl-Boom")
@@ -88,4 +100,5 @@ dependencies {
     implementation(libs.jackson.annotations)
     implementation(libs.jackson.databind)
     implementation(libs.timber)
+    implementation(project(":commons"))
 }
