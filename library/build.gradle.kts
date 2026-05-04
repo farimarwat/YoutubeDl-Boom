@@ -52,7 +52,7 @@ mavenPublishing{
     coordinates(
         groupId = "io.github.farimarwat",
         artifactId = "youtubedl-boom",
-        version = "1.0.22"
+        version = "1.0.23"
     )
     pom {
         name.set("youtubedl-boom")
