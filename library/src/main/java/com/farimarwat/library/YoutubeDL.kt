@@ -254,13 +254,19 @@ object YoutubeDL {
                 }
 
                 val out = outBuffer.toString()
-                val videoInfo = out.let { jsonOutput ->
-                    try {
-                        objectMapper.readValue(jsonOutput, VideoInfo::class.java)
-                            ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
-                    } catch (e: IOException) {
-                        throw YoutubeDLException("Unable to parse video information", e)
-                    }
+                val err = errBuffer.toString()
+
+                if (out.isBlank()) {
+                    throw YoutubeDLException(
+                        err.ifBlank { "yt-dlp returned no output for the given URL" }
+                    )
+                }
+
+                val videoInfo = try {
+                    objectMapper.readValue(out, VideoInfo::class.java)
+                        ?: throw YoutubeDLException("Failed to parse video information: JSON output is null")
+                } catch (e: IOException) {
+                    throw YoutubeDLException("Unable to parse video information: $err", e)
                 }
                 withContext(Dispatchers.Main) {
                     onSuccess(videoInfo)

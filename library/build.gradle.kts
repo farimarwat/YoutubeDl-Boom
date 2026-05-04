@@ -25,7 +25,6 @@ android {
             }
         }
 
-
     }
 
     buildTypes {
