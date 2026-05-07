@@ -50,7 +50,7 @@ To use `youtubedl-boom` in your Android project, add the following two dependenc
 
 ```kotlin
 dependencies {
-    implementation("io.github.farimarwat:youtubedl-boom:1.0.22")
+    implementation("io.github.farimarwat:youtubedl-boom:1.0.23")
     implementation("io.github.farimarwat:youtubedl-boom-commons:1.2")
 }
 ```
@@ -316,6 +316,10 @@ val versionName = RYoutubeDL.versionName(this)
 
 
   ### Version History
+   **youtubedl-boom:1.0.23**
+   - Minor bugs fixed
+
+  
   **youtubedl-boom:1.0.20**
   - Moved YoutubeDlRequest, YoutubeDlOption, YoutubeDlResponse, VideoInfo, VideoFormat to commons library
   - The above changes made because these are common between youtubedl-helper and youtubedl-boom
