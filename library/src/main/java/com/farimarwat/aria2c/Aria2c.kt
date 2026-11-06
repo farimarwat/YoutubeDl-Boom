@@ -4,7 +4,6 @@ import android.content.Context
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.utils.ZipUtils
 import com.farimarwat.library.YoutubeDLException
-import org.apache.commons.io.FileUtils
 import java.io.File
 
 object Aria2c {
@@ -31,12 +30,12 @@ object Aria2c {
         // using size of lib as version
         val aria2cSize = aria2cLib.length().toString()
         if (!aria2cDir.exists() || shouldUpdateAria2c(appContext, aria2cSize)) {
-            FileUtils.deleteQuietly(aria2cDir)
+            ZipUtils.deleteQuietly(aria2cDir)
             aria2cDir.mkdirs()
             try {
                 ZipUtils.unzip(aria2cLib, aria2cDir)
             } catch (e: Exception) {
-                FileUtils.deleteQuietly(aria2cDir)
+                ZipUtils.deleteQuietly(aria2cDir)
                 throw YoutubeDLException("failed to initialize", e)
             }
             updateAria2c(appContext, aria2cSize)

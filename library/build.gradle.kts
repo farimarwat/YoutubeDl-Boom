@@ -52,7 +52,7 @@ mavenPublishing{
     coordinates(
         groupId = "io.github.farimarwat",
         artifactId = "youtubedl-boom",
-        version = "1.0.23"
+        version = "1.0.24"
     )
     pom {
         name.set("youtubedl-boom")
@@ -88,13 +88,12 @@ mavenPublishing{
     signAllPublications()
 }
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    // Job is part of YoutubeDL's public API; coroutines used to arrive only through appcompat.
+    api(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    implementation(libs.commons.io)
+    // Unzips the python/ffmpeg/aria2c bundles, symlinks included (java.util.zip cannot).
     implementation(libs.commons.compress)
     implementation(libs.jackson.annotations)
     implementation(libs.jackson.databind)

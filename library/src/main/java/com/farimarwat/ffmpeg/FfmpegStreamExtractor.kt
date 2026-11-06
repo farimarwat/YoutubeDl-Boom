@@ -1,17 +1,18 @@
 package com.farimarwat.ffmpeg
 
-import com.yausername.youtubedl_android.ProcessUtils
 import com.yausername.youtubedl_android.getChildProcessId
 import com.yausername.youtubedl_android.getProcessId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
-import java.lang.Thread.sleep
+import timber.log.Timber
 
 /**
  * Extracts and reads the FFmpeg stream output for monitoring progress.
@@ -40,34 +41,41 @@ internal class FfmpegStreamExtractor {
      * @return A [Job] representing the coroutine that monitors the process output.
      */
 
-     fun readStream(process:Process, progressCallBack: ((Float, Long, String) -> Unit)? = null):Job =
-         CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val pythonPID = process.getProcessId()
-            var ffmpegId:Int
-            var line: String?
-            var ffmpegInitiated = false
-            var shouldStop = false
-            while (!shouldStop) {
-                ffmpegId = pythonPID.getChildProcessId()
-                val progressFilePath = "/proc/$ffmpegId/fd/2"
-                val progressFile = File(progressFilePath)
-                if (progressFile.exists()) {
-                    ffmpegInitiated = true
-                    val inputStream = FileInputStream(progressFile)
-                    val reader = BufferedReader(InputStreamReader(inputStream))
-                    while (reader.readLine().also { line = it } != null) {
-                        val size = ProcessUtils.extractSize(line)
-                        progressCallBack?.let { it(-1f  ,-1L,line.toString())}
+    fun readStream(process: Process, progressCallBack: ((Float, Long, String) -> Unit)? = null): Job =
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val pythonPID = process.getProcessId()
+                if (pythonPID <= 0) return@launch
+                var ffmpegInitiated = false
+                // Stop when python exits too: if ffmpeg never starts, the old loop never ended and
+                // download() waited on it forever.
+                while (isActive && process.isRunning()) {
+                    val ffmpegId = pythonPID.getChildProcessId()
+                    if (ffmpegId > 0) {
+                        val progressFile = File("/proc/$ffmpegId/fd/2")
+                        if (progressFile.exists()) {
+                            ffmpegInitiated = true
+                            BufferedReader(InputStreamReader(FileInputStream(progressFile))).use { reader ->
+                                var line: String?
+                                while (reader.readLine().also { line = it } != null) {
+                                    progressCallBack?.invoke(-1f, -1L, line.toString())
+                                }
+                            }
+                        }
+                    } else if (ffmpegInitiated) {
+                        break
                     }
+                    delay(1000)
                 }
-                sleep(1000)
-                if(ffmpegInitiated && ffmpegId == -1){
-                    shouldStop = true
-                }
+            } catch (ex: Exception) {
+                Timber.i(ex)
             }
-        } catch (ex: Exception) {
-            ex.printStackTrace()
         }
+
+    private fun Process.isRunning(): Boolean = try {
+        exitValue()
+        false
+    } catch (e: IllegalThreadStateException) {
+        true
     }
 }

@@ -5,10 +5,11 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 object ProcessUtils {
+    private val sizePattern = Regex("""size\s*=\s*(\d+)kB""")
+
     fun extractSize(line: String?): Int? {
         return line?.let {
-            val pattern = Regex("""size\s*=\s*(\d+)kB""")
-            val matchResult = pattern.find(line)
+            val matchResult = sizePattern.find(line)
             val sizeValue = matchResult?.groupValues?.getOrNull(1)
             sizeValue?.toIntOrNull()
         }
@@ -20,30 +21,28 @@ fun Process.getProcessId(): Int {
         field.isAccessible = true
         field.getInt(this)
     }catch (ex:Exception){
-        ex.printStackTrace()
+        Timber.i(ex)
         -1
     }
 }
 fun Int.getChildProcessId(): Int {
+    if (this <= 0) return -1
+    var process: Process? = null
     return try {
         val command = "ps --ppid $this | awk 'NR > 1 {print \$2}'"
-        val processBuilder = ProcessBuilder("/system/bin/sh", "-c", command)
-        val process = processBuilder.start()
-        val reader = BufferedReader(InputStreamReader(process.inputStream))
-        val pidLine = reader.readLine()
-        if (pidLine != null) {
-            val pid = pidLine.trim().toIntOrNull()
-            return pid ?: -1
-        }
-
-        val exitCode = process.waitFor()
-        Timber.i("No ffmpeg process found")
-        -1
+        process = ProcessBuilder("/system/bin/sh", "-c", command).start()
+        val pidLine = BufferedReader(InputStreamReader(process.inputStream)).use { it.readLine() }
+        process.waitFor()
+        pidLine?.trim()?.toIntOrNull() ?: -1
     } catch (e: Exception) {
-        e.printStackTrace()
+        Timber.i(e)
         -1
+    } finally {
+        // Reap the shell and close its pipes; otherwise every call leaves a zombie and open fds.
+        process?.destroy()
     }
 }
 fun Int.killProcess() {
-    android.os.Process.killProcess(this)
+    // -1 means "not found"; never let it reach kill(2), where -1 means every process we can signal.
+    if (this > 0) android.os.Process.killProcess(this)
 }

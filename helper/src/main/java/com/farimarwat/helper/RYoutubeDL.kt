@@ -1,24 +1,46 @@
 package com.farimarwat.helper
 
 import android.content.Context
+import android.util.Log
 import com.farimarwat.commons.UpdateChannel
 import com.farimarwat.commons.VideoInfo
 import com.farimarwat.commons.YoutubeDLRequest
 import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import timber.log.Timber
-import kotlin.reflect.full.callSuspendBy
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.createInstance
-import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.full.memberProperties
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
-
+/**
+ * Calls youtubedl-boom's `YoutubeDL` when it lives in a Dynamic Feature Module, where the app
+ * module cannot reference it at compile time.
+ *
+ * Uses plain Java reflection on purpose: kotlin-reflect needs the `kotlin/` builtins resources,
+ * which R8 / dynamic-feature apps often do not ship ("Built-in class kotlin.Any is not found").
+ */
 object RYoutubeDL {
+    private const val TAG = "RYoutubeDL"
+    private const val YOUTUBE_DL_CLASS = "com.farimarwat.library.YoutubeDL"
+
+    private fun youtubeDL(): Any =
+        Class.forName(YOUTUBE_DL_CLASS).getField("INSTANCE").get(null)
+            ?: throw IllegalStateException("Failed to access the singleton instance of YoutubeDL")
+
+    private fun method(name: String, vararg parameterTypes: Class<*>): Method =
+        Class.forName(YOUTUBE_DL_CLASS).getMethod(name, *parameterTypes)
+
+    /** Calls [method] on the YoutubeDL instance and rethrows the library's own exception, not the reflection wrapper. */
+    private fun invoke(method: Method, vararg args: Any?): Any? = try {
+        method.invoke(youtubeDL(), *args)
+    } catch (e: InvocationTargetException) {
+        throw e.targetException ?: e
+    }
+
     /**
      * Initializes the YoutubeDL library in a background coroutine.
      *
@@ -39,36 +61,29 @@ object RYoutubeDL {
     ): Job {
         return CoroutineScope(Dispatchers.IO).launch {
             try {
-                val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-                val youtubeDLInstance = youtubeDLClass.objectInstance
-                if (youtubeDLInstance == null) {
-                    onError(IllegalStateException("Failed to access the singleton instance of YoutubeDL"))
-                    return@launch
+                val initMethod = method(
+                    "init",
+                    Context::class.java,
+                    Boolean::class.javaPrimitiveType!!,
+                    Boolean::class.javaPrimitiveType!!,
+                    Function2::class.java,
+                    Function1::class.java
+                )
+                // The library's onSuccess is `suspend (YoutubeDL) -> Unit`: a Function2 taking a Continuation last.
+                val successCallback: (Any?, Any?) -> Any? = { instance, _ ->
+                    CoroutineScope(Dispatchers.Main).launch { onSuccess(instance ?: youtubeDL()) }
+                    Unit
                 }
-                val initMethod = youtubeDLClass.memberFunctions.find { it.name == "init" }
-                if (initMethod == null) {
-                    onError(NoSuchMethodException("init method not found in YoutubeDL"))
-                    return@launch
-                }
-                val job = initMethod.call(
-                    youtubeDLInstance,
-                    appContext,
-                    withFfmpeg,
-                    withAria2c,
-                    { youtubeDL: Any, _:Any ->
-                        CoroutineScope(Dispatchers.Main).launch {
-                            onSuccess(youtubeDLInstance)
-                        }
-                    },
-                    { throwable: Throwable -> onError(throwable) }
+                val errorCallback: (Throwable) -> Unit = { throwable -> onError(throwable) }
+                val job = invoke(
+                    initMethod, appContext, withFfmpeg, withAria2c, successCallback, errorCallback
                 ) as? Job
-
                 if (job == null) {
                     onError(IllegalStateException("Failed to start initialization job"))
                     return@launch
                 }
                 job.join()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 onError(e)
             }
         }
@@ -89,38 +104,40 @@ object RYoutubeDL {
         url: String,
         onSuccess: suspend (VideoInfo) -> Unit = {},
         onError: (Throwable) -> Unit = {}
+    ): Job = callGetInfo(String::class.java, url, onSuccess, onError)
+
+    /**
+     * Retrieves video information for a [YoutubeDLRequest], so extra yt-dlp options can be passed
+     * (for example `--use-extractors`). `--dump-json` is added by the library.
+     *
+     * @param request The request containing the URL and options.
+     * @param onSuccess Callback invoked on the main thread with the retrieved video information.
+     * @param onError Callback invoked in case of an error during the retrieval process.
+     *
+     * @return A [Job] representing the coroutine that starts the retrieval on [Dispatchers.IO].
+     */
+    fun getInfo(
+        request: YoutubeDLRequest,
+        onSuccess: suspend (VideoInfo) -> Unit = {},
+        onError: (Throwable) -> Unit = {}
+    ): Job = callGetInfo(YoutubeDLRequest::class.java, request, onSuccess, onError)
+
+    private fun callGetInfo(
+        argumentType: Class<*>,
+        argument: Any,
+        onSuccess: suspend (VideoInfo) -> Unit,
+        onError: (Throwable) -> Unit
     ): Job {
         return CoroutineScope(Dispatchers.IO).launch {
             try {
-                val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-
-                val youtubeDLInstance = youtubeDLClass.objectInstance
-                if (youtubeDLInstance == null) {
-                    onError(IllegalStateException("Failed to access the singleton instance of YoutubeDL"))
-                    return@launch
+                val getInfoMethod =
+                    method("getInfo", argumentType, Function1::class.java, Function1::class.java)
+                val successCallback: (VideoInfo) -> Unit = { videoInfo ->
+                    CoroutineScope(Dispatchers.Main).launch { onSuccess(videoInfo) }
                 }
-
-                val getInfoMethod = youtubeDLClass.memberFunctions.find { function ->
-                    function.name == "getInfo" &&
-                            function.parameters.getOrNull(1)?.type?.classifier == String::class
-                }
-                if (getInfoMethod == null) {
-                    onError(NoSuchMethodException("getInfo method with String URL not found in YoutubeDL"))
-                    return@launch
-                }
-
-                getInfoMethod.call(
-                    youtubeDLInstance,
-                    url,
-                    { videoInfo: VideoInfo ->
-                        CoroutineScope(Dispatchers.Main).launch {
-                            onSuccess(videoInfo)
-                        }
-                    },
-                    { throwable: Throwable -> onError(throwable) }
-                )
-
-            } catch (e: Exception) {
+                val errorCallback: (Throwable) -> Unit = { throwable -> onError(throwable) }
+                invoke(getInfoMethod, argument, successCallback, errorCallback)
+            } catch (e: Throwable) {
                 onError(e)
             }
         }
@@ -151,48 +168,23 @@ object RYoutubeDL {
     ): Job {
         return CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Step 1: Load the YoutubeDL class dynamically
-                val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-
-                // Step 2: Access the singleton instance of the object
-                val youtubeDLInstance = youtubeDLClass.objectInstance
-                if (youtubeDLInstance == null) {
-                    throw IllegalStateException("Failed to access the singleton instance of YoutubeDL")
-                }
-
-                // Step 3: Find the `download` method with the correct signature
-                val downloadMethod = youtubeDLClass.memberFunctions.find { function ->
-                    function.name == "download" &&
-                            function.parameters.size >= 6 // At least 6 parameters: instance, request, pId, progressCallBack, onStartProcess, onEndProcess, onError
-                }
-
-                if (downloadMethod == null) {
-                    throw NoSuchMethodException("download method not found in YoutubeDL")
-                }
-
-                // Step 4: Prepare the parameters for the method call
-                val params = listOf(
-                    request, // YoutubeDLRequest
-                    pId,    // Process ID
-                    progressCallBack, // Progress callback
-                    { processId: String -> onStartProcess(processId) }, // onStartProcess
-                    { response: Any -> onEndProcess(response) }, // onEndProcess
-                    { throwable: Throwable -> onError(throwable) } // onError
+                val downloadMethod = method(
+                    "download",
+                    YoutubeDLRequest::class.java,
+                    String::class.java,
+                    Function3::class.java,
+                    Function1::class.java,
+                    Function1::class.java,
+                    Function1::class.java
                 )
-
-                // Step 5: Invoke the `download` method with the parameters
-                downloadMethod.callBy(
-                    mapOf(
-                        downloadMethod.parameters[0] to youtubeDLInstance, // Object instance
-                        downloadMethod.parameters[1] to params[0], // request
-                        downloadMethod.parameters[2] to params[1], // pId
-                        downloadMethod.parameters[3] to params[2], // progressCallBack
-                        downloadMethod.parameters[4] to params[3], // onStartProcess
-                        downloadMethod.parameters[5] to params[4], // onEndProcess
-                        downloadMethod.parameters[6] to params[5] // onError
-                    )
+                val startCallback: (String) -> Unit = { processId -> onStartProcess(processId) }
+                val endCallback: (Any) -> Unit = { response -> onEndProcess(response) }
+                val errorCallback: (Throwable) -> Unit = { throwable -> onError(throwable) }
+                invoke(
+                    downloadMethod,
+                    request, pId, progressCallBack, startCallback, endCallback, errorCallback
                 )
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 onError(e)
             }
         }
@@ -201,34 +193,14 @@ object RYoutubeDL {
     /**
      * Destroys a process by its ID using the `YoutubeDL` singleton instance.
      *
-     * This function dynamically loads the `YoutubeDL` class, retrieves its singleton instance,
-     * and invokes the `destroyProcessById` method to terminate the specified process.
-     *
      * @param id The ID of the process to be destroyed.
      * @return `true` if the process was successfully destroyed, `false` otherwise.
-     * @throws IllegalStateException If the `YoutubeDL` singleton instance cannot be accessed.
-     * @throws NoSuchMethodException If the `destroyProcessById` method is not found in `YoutubeDL`.
      */
     fun destroyProcessById(id: String): Boolean {
         return try {
-            val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-
-            val youtubeDLInstance = youtubeDLClass.objectInstance
-            if (youtubeDLInstance == null) {
-                throw IllegalStateException("Failed to access the singleton instance of YoutubeDL")
-            }
-            val destroyProcessByIdMethod = youtubeDLClass.memberFunctions.find { function ->
-                function.name == "destroyProcessById" &&
-                        function.parameters.size == 2 && // instance, id
-                        function.parameters[1].type.classifier == String::class // id is String
-            }
-
-            if (destroyProcessByIdMethod == null) {
-                throw NoSuchMethodException("destroyProcessById method not found in YoutubeDL")
-            }
-            destroyProcessByIdMethod.call(youtubeDLInstance, id) as Boolean
-        } catch (e: Exception) {
-            Timber.e(e)
+            invoke(method("destroyProcessById", String::class.java), id) as Boolean
+        } catch (e: Throwable) {
+            Log.e(TAG, "destroyProcessById failed", e)
             false
         }
     }
@@ -236,49 +208,25 @@ object RYoutubeDL {
     /**
      * Retrieves the count of in-progress downloads using the `YoutubeDL` singleton instance.
      *
-     * This function dynamically loads the `YoutubeDL` class, retrieves its singleton instance,
-     * and invokes the `getInProgressDownloadsCount` method to obtain the number of active downloads.
-     *
      * @return The number of in-progress downloads. Returns `0` if an error occurs.
-     * @throws IllegalStateException If the `YoutubeDL` singleton instance cannot be accessed.
-     * @throws NoSuchMethodException If the `getInProgressDownloadsCount` method is not found in `YoutubeDL`.
      */
     fun getInProgressDownloadsCount(): Int {
         return try {
-            val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-            val youtubeDLInstance = youtubeDLClass.objectInstance
-            if (youtubeDLInstance == null) {
-                throw IllegalStateException("Failed to access the singleton instance of YoutubeDL")
-            }
-            val getInProgressDownloadsCountMethod =
-                youtubeDLClass.memberFunctions.find { function ->
-                    function.name == "getInProgressDownloadsCount" &&
-                            function.parameters.size == 1 // instance
-                }
-            if (getInProgressDownloadsCountMethod == null) {
-                throw NoSuchMethodException("getInProgressDownloadsCount method not found in YoutubeDL")
-            }
-            getInProgressDownloadsCountMethod.call(youtubeDLInstance) as Int
-        } catch (e: Exception) {
-            println("Error getting in-progress downloads count: ${e.message}")
+            invoke(method("getInProgressDownloadsCount")) as Int
+        } catch (e: Throwable) {
+            Log.e(TAG, "getInProgressDownloadsCount failed", e)
             0
         }
     }
 
-
     /**
      * Updates the YoutubeDL library asynchronously using the provided update channel.
-     *
-     * This function dynamically loads the `YoutubeDL` class, retrieves its singleton instance,
-     * and invokes the `updateYoutubeDL` method to initiate the update process.
      *
      * @param appContext The application context required for the update process.
      * @param updateChannel The update channel (e.g., stable, nightly, master).
      * @param onSuccess A suspend function invoked on the main thread when the update succeeds.
      * @param onError A callback invoked when an error occurs during the update.
      * @return A [Job] representing the coroutine performing the update.
-     * @throws IllegalStateException If the `YoutubeDL` singleton instance cannot be accessed.
-     * @throws NoSuchMethodException If the `updateYoutubeDL` method is not found in `YoutubeDL`.
      */
     fun updateYoutubeDL(
         appContext: Context,
@@ -291,113 +239,53 @@ object RYoutubeDL {
         }
         return CoroutineScope(Dispatchers.IO + exception).launch {
             try {
-                // Step 1: Load the YoutubeDL class dynamically
-                val youtubeDLClass = Class.forName("com.farimarwat.library.YoutubeDL").kotlin
-
-                // Step 2: Access the singleton instance of the object
-                val youtubeDLInstance = youtubeDLClass.objectInstance
-                if (youtubeDLInstance == null) {
-                    throw IllegalStateException("Failed to access the singleton instance of YoutubeDL")
-                }
-
-                // Step 3: Find the `updateYoutubeDL` method
-                val updateYoutubeDLMethod = youtubeDLClass.memberFunctions.find { function ->
-                    function.name == "updateYoutubeDL" &&
-                            function.parameters.size == 5 // instance, appContext, updateChannel, onSuccess, onError
-                }
-
-                if (updateYoutubeDLMethod == null) {
-                    throw NoSuchMethodException("updateYoutubeDL method not found in YoutubeDL")
-                }
-
-                // Step 4: Prepare the parameters for the method call
-                val params = mapOf(
-                    updateYoutubeDLMethod.parameters[0] to youtubeDLInstance, // Object instance
-                    updateYoutubeDLMethod.parameters[1] to appContext, // appContext
-                    updateYoutubeDLMethod.parameters[2] to updateChannel, // updateChannel
-                    updateYoutubeDLMethod.parameters[3] to { updateStatus: Any ->
-                        // Ensure the onSuccess callback runs on the main thread
-                        CoroutineScope(Dispatchers.Main).launch {
-                            onSuccess(updateStatus)
-                        }
-                    }, // onSuccess
-                    updateYoutubeDLMethod.parameters[4] to { throwable: Throwable ->
-                        onError(
-                            throwable
-                        )
-                    } // onError
+                // `suspend fun updateYoutubeDL(...)` compiles to a method taking a trailing Continuation.
+                val updateMethod = method(
+                    "updateYoutubeDL",
+                    Context::class.java,
+                    UpdateChannel::class.java,
+                    Function1::class.java,
+                    Function1::class.java,
+                    Continuation::class.java
                 )
-                updateYoutubeDLMethod.callSuspendBy(params)
-            } catch (e: Exception) {
+                val successCallback: (Any) -> Unit = { updateStatus ->
+                    CoroutineScope(Dispatchers.Main).launch { onSuccess(updateStatus) }
+                }
+                val errorCallback: (Throwable) -> Unit = { throwable -> onError(throwable) }
+                suspendCoroutineUninterceptedOrReturn<Any?> { continuation ->
+                    invoke(
+                        updateMethod,
+                        appContext, updateChannel, successCallback, errorCallback, continuation
+                    )
+                }
+            } catch (e: Throwable) {
                 onError(e)
             }
         }
     }
 
-
     /**
      * Retrieves the version of the yt-dlp library.
      *
-     * This function dynamically loads the `YoutubeDLUpdater` class, retrieves its instance,
-     * and invokes the `version` method to obtain the version string.
-     *
      * @param appContext The application context required for retrieving the version.
      * @return The version string, or `null` if an error occurs.
-     * @throws NoSuchMethodException If the `version` method is not found in `YoutubeDLUpdater`.
      */
-    suspend fun version(appContext: Context?): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val youtubeDLUpdaterClass =
-                    Class.forName("com.farimarwat.library.YoutubeDLUpdater").kotlin
-                val instance =
-                    youtubeDLUpdaterClass.objectInstance ?: youtubeDLUpdaterClass.createInstance()
-
-                val versionMethod = youtubeDLUpdaterClass.memberFunctions.find { function ->
-                    function.name == "version" &&
-                            function.parameters.size == 2 // instance, appContext
-                }
-                if (versionMethod == null) {
-                    throw NoSuchMethodException("version method not found in YoutubeDLUpdater")
-                }
-                versionMethod.call(instance, appContext) as? String
-            } catch (e: Exception) {
-                Timber.e(e)
-                null
-            }
-        }
-    }
+    suspend fun version(appContext: Context?): String? = callVersion("version", appContext)
 
     /**
      * Retrieves the version name of the yt-dlp library.
      *
-     * This function dynamically loads the `YoutubeDLUpdater` class, retrieves its instance,
-     * and invokes the `versionName` method to obtain the version name.
-     *
      * @param appContext The application context required for retrieving the version name.
      * @return The version name string, or `null` if an error occurs.
-     * @throws NoSuchMethodException If the `versionName` method is not found in `YoutubeDLUpdater`.
      */
-    suspend fun versionName(appContext: Context?): String? {
+    suspend fun versionName(appContext: Context?): String? = callVersion("versionName", appContext)
+
+    private suspend fun callVersion(name: String, appContext: Context?): String? {
         return withContext(Dispatchers.IO) {
             try {
-                val youtubeDLUpdaterClass =
-                    Class.forName("com.farimarwat.library.YoutubeDLUpdater").kotlin
-                // Create an instance of YoutubeDLUpdater
-                val instance =
-                    youtubeDLUpdaterClass.objectInstance ?: youtubeDLUpdaterClass.createInstance()
-
-                val versionNameMethod = youtubeDLUpdaterClass.memberFunctions.find { function ->
-                    function.name == "versionName" &&
-                            function.parameters.size == 2 // instance, appContext
-                }
-                if (versionNameMethod == null) {
-                    throw NoSuchMethodException("versionName method not found in YoutubeDLUpdater")
-                }
-                // Pass the instance as the first argument
-                versionNameMethod.call(instance, appContext) as? String
-            } catch (e: Exception) {
-                Timber.e(e)
+                invoke(method(name, Context::class.java), appContext) as? String
+            } catch (e: Throwable) {
+                Log.e(TAG, "$name failed", e)
                 null
             }
         }

@@ -1,6 +1,5 @@
 package com.farimarwat.library
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,8 +43,11 @@ internal class StreamProcessExtractor {
                     for (i in 0 until charsRead) {
                         val nextChar = charArray[i]
                         if (nextChar == '\r' || nextChar == '\n') {
-                            val line = currentLine.toString()
-                            callback?.invoke(getProgress(line),getEta(line),line)
+                            if (callback != null) {
+                                val line = currentLine.toString()
+                                parseProgress(line)
+                                callback(progress, eta, line)
+                            }
                             currentLine.setLength(0)
                         } else {
                             currentLine.append(nextChar)
@@ -64,29 +66,19 @@ internal class StreamProcessExtractor {
         }
     }
 
-    private fun getProgress(line: String): Float {
+    /** Updates [progress] and [eta] from a yt-dlp or aria2c progress line; keeps the last values otherwise. */
+    private fun parseProgress(line: String) {
         val matcher = p.matcher(line)
-        if (matcher.find()) return matcher.group(GROUP_PERCENT).toFloat()
-            .also { progress = it } else {
-            val mAria2c = pAria2c.matcher(line)
-            if (mAria2c.find()) return mAria2c.group(1).toFloat().also { progress = it }
+        if (matcher.find()) {
+            progress = matcher.group(GROUP_PERCENT)!!.toFloat()
+            eta = convertToSeconds(matcher.group(GROUP_MINUTES), matcher.group(GROUP_SECONDS)).toLong()
+            return
         }
-        return progress
-    }
-
-    private fun getEta(line: String): Long {
-        val matcher = p.matcher(line)
-        if (matcher.find()) return convertToSeconds(
-            matcher.group(GROUP_MINUTES),
-            matcher.group(GROUP_SECONDS)
-        ).also { eta = it.toLong() }.toLong() else {
-            val mAria2c = pAria2c.matcher(line)
-            if (mAria2c.find()) return convertToSeconds(
-                mAria2c.group(3),
-                mAria2c.group(5)
-            ).also { eta = it.toLong() }.toLong()
+        val mAria2c = pAria2c.matcher(line)
+        if (mAria2c.find()) {
+            progress = mAria2c.group(1)!!.toFloat()
+            eta = convertToSeconds(mAria2c.group(3), mAria2c.group(5)).toLong()
         }
-        return eta
     }
 
     private fun convertToSeconds(minutes: String?, seconds: String?): Int {

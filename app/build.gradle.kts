@@ -16,6 +16,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Shown in the app so it is clear which library is being tested (see -Plite below).
+        buildConfigField("boolean", "LITE", project.hasProperty("lite").toString())
         ndk {
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
@@ -48,6 +50,7 @@ dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -62,7 +65,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(project(":library"))
+    // ./gradlew :app:installDebug -Plite  -> sample app on youtubedl-boom-lite (small ffmpeg)
+    implementation(project(if (project.hasProperty("lite")) ":library-lite" else ":library"))
     implementation(project(":helper"))
     implementation(project(":commons"))
    /* implementation(libs.youtubedl.boom.helper)

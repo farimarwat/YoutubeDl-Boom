@@ -8,9 +8,10 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.commons.io.FileUtils
+import com.farimarwat.common.utils.ZipUtils
 import java.io.File
 import java.io.IOException
+import java.net.HttpURLConnection
 import java.net.URL
 
 internal object YoutubeDLUpdater {
@@ -23,6 +24,8 @@ internal object YoutubeDLUpdater {
     private const val dlpBinaryName = "yt-dlp"
     private const val dlpVersionKey = "dlpVersion"
     private const val dlpVersionNameKey = "dlpVersionName"
+    private const val CONNECT_TIMEOUT_MS = 10_000
+    private const val READ_TIMEOUT_MS = 20_000
 
     @Throws(IOException::class, YoutubeDLException::class)
     internal fun update(
@@ -39,20 +42,25 @@ internal object YoutubeDLUpdater {
         val binary = File(ytdlpDir, dlpBinaryName)
         try {
             /* purge older version */
-            if (ytdlpDir.exists()) FileUtils.deleteDirectory(ytdlpDir)
+            if (ytdlpDir.exists()) ZipUtils.deleteQuietly(ytdlpDir)
             /* install newer version */ytdlpDir.mkdirs()
-            FileUtils.copyFile(file, binary)
+            file.copyTo(binary, overwrite = true)
         } catch (e: Exception) {
             /* if something went wrong restore default version */
-            FileUtils.deleteQuietly(ytdlpDir)
+            ZipUtils.deleteQuietly(ytdlpDir)
             YoutubeDL.getInstance().init_ytdlp(appContext,ytdlpDir)
+            YoutubeDL.prepareYtdlp()
             throw YoutubeDLException(e)
         } finally {
             file.delete()
         }
         updateSharedPrefs(appContext, getTag(json), getName(json))
+        YoutubeDL.prepareYtdlp()
         return UpdateStatus.DONE
     }
+
+    internal fun saveVersion(appContext: Context, tag: String, name: String) =
+        updateSharedPrefs(appContext, tag, name)
 
     private fun updateSharedPrefs(appContext: Context, tag: String, name: String) {
         SharedPrefsHelper.update(appContext, dlpVersionKey, tag)
@@ -61,8 +69,7 @@ internal object YoutubeDLUpdater {
 
     @Throws(IOException::class)
     private fun checkForUpdate(appContext: Context, youtubeDLChannel: UpdateChannel): JsonNode? {
-        val url = URL(youtubeDLChannel.apiUrl)
-        val json = YoutubeDL.objectMapper.readTree(url)
+        val json = readJson(youtubeDLChannel.apiUrl)
         val newVersion = getTag(json)
         val oldVersion = SharedPrefsHelper[appContext, dlpVersionKey]
         return if (newVersion == oldVersion) {
@@ -95,19 +102,36 @@ internal object YoutubeDLUpdater {
 
     suspend fun getYtdDownloadUrl(youtubeDLChannel: UpdateChannel):String {
         return withContext(Dispatchers.IO){
-            val url = URL(youtubeDLChannel.apiUrl)
-            getDownloadUrl(YoutubeDL.objectMapper.readTree(url))
+            getDownloadUrl(readJson(youtubeDLChannel.apiUrl))
         }
 
     }
 
     @Throws(IOException::class)
     private fun download(appContext: Context, url: String): File {
-        val downloadUrl = URL(url)
         val file = File.createTempFile(dlpBinaryName, null, appContext.cacheDir)
-        FileUtils.copyURLToFile(downloadUrl, file, 5000, 10000)
+        try {
+            openConnection(url).inputStream.use { input ->
+                file.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+            }
+        } catch (e: IOException) {
+            file.delete()
+            throw e
+        }
         return file
     }
+
+    /** objectMapper.readTree(URL) had no timeouts: on a bad network the update hung forever. */
+    @Throws(IOException::class)
+    private fun readJson(url: String): JsonNode =
+        openConnection(url).inputStream.use { YoutubeDL.objectMapper.readTree(it) }
+
+    @Throws(IOException::class)
+    private fun openConnection(url: String): HttpURLConnection =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+        }
 
     private fun getYoutubeDLDir(appContext: Context): File {
         val baseDir = File(appContext.noBackupFilesDir, YoutubeDL.baseName)

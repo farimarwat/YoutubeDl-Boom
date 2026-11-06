@@ -1,24 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("maven-publish")
-    id("signing")
+    id ("com.vanniktech.maven.publish") version "0.33.0"
 }
-val PUBLISH_GROUP_ID by extra("io.github.farimarwat")
-val PUBLISH_VERSION by extra("1.6")
-val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom-helper")
-val PUBLISH_DESCRIPTION by extra("A helper library for youtubedl-boom")
-val PUBLISH_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom")
-val PUBLISH_LICENSE_NAME by extra("Apache 2.0 License")
-val PUBLISH_LICENSE_URL by extra("https://www.apache.org/licenses/LICENSE-2.0")
-val PUBLISH_DEVELOPER_ID by extra("farimarwat")
-val PUBLISH_DEVELOPER_NAME by extra("Farman Ullah Marwat")
-val PUBLISH_DEVELOPER_EMAIL by extra("farimarwat@gmail.com")
-val PUBLISH_SCM_CONNECTION by extra("scm:git:github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_DEVELOPER_CONNECTION by extra("scm:git:ssh://github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom/tree/main")
 
-apply(from = "${rootProject.projectDir}/scripts/publish-module.gradle")
 android {
     namespace = "com.farimarwat.helper"
     compileSdk = 35
@@ -53,17 +38,43 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    // Types from both appear in RYoutubeDL's public API (YoutubeDLRequest, VideoInfo, Job).
+    api(project(":commons"))
+    api(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    implementation(libs.commons.io)
-    implementation(libs.commons.compress)
-    implementation(libs.jackson.annotations)
-    implementation(libs.jackson.databind)
-    implementation(libs.timber)
-    implementation(libs.kotlin.reflect)
-    implementation(project(":commons"))
+}
+
+mavenPublishing {
+    coordinates(
+        groupId = "io.github.farimarwat",
+        artifactId = "youtubedl-boom-helper",
+        version = "1.7"
+    )
+    pom {
+        name.set("youtubedl-boom-helper")
+        description.set("A helper library for youtubedl-boom")
+        url.set("https://github.com/farimarwat/YoutubeDl-Boom")
+        licenses {
+            license {
+                name.set("Apache 2.0 License")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0")
+            }
+        }
+        developers {
+            developer {
+                id.set("farimarwat")
+                name.set("Farman Ullah Marwat")
+                email.set("farimarwat@gmail.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:github.com/farimarwat/YoutubeDl-Boom.git")
+            developerConnection.set("scm:git:ssh://github.com/farimarwat/YoutubeDl-Boom.git")
+            url.set("https://github.com/farimarwat/YoutubeDl-Boom/tree/main")
+        }
+    }
+    publishToMavenCentral()
+    signAllPublications()
 }

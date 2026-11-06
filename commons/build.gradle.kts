@@ -1,24 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("maven-publish")
-    id("signing")
+    id ("com.vanniktech.maven.publish") version "0.33.0"
 }
-val PUBLISH_GROUP_ID by extra("io.github.farimarwat")
-val PUBLISH_VERSION by extra("1.2")
-val PUBLISH_ARTIFACT_ID by extra("youtubedl-boom-commons")
-val PUBLISH_DESCRIPTION by extra("Commons that are shared between helper and parent library")
-val PUBLISH_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom")
-val PUBLISH_LICENSE_NAME by extra("Apache 2.0 License")
-val PUBLISH_LICENSE_URL by extra("https://www.apache.org/licenses/LICENSE-2.0")
-val PUBLISH_DEVELOPER_ID by extra("farimarwat")
-val PUBLISH_DEVELOPER_NAME by extra("Farman Ullah Marwat")
-val PUBLISH_DEVELOPER_EMAIL by extra("farimarwat@gmail.com")
-val PUBLISH_SCM_CONNECTION by extra("scm:git:github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_DEVELOPER_CONNECTION by extra("scm:git:ssh://github.com/farimarwat/YoutubeDl-Boom.git")
-val PUBLISH_SCM_URL by extra("https://github.com/farimarwat/YoutubeDl-Boom/tree/main")
 
-apply(from = "${rootProject.projectDir}/scripts/publish-module.gradle")
 android {
     namespace = "com.farimarwat.commons"
     compileSdk = 35
@@ -52,16 +37,42 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
+    // VideoInfo, VideoFormat, ... carry Jackson annotations.
+    api(libs.jackson.annotations)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    implementation(libs.commons.io)
-    implementation(libs.commons.compress)
-    implementation(libs.jackson.annotations)
-    implementation(libs.jackson.databind)
-    implementation(libs.timber)
-    implementation(libs.kotlin.reflect)
+}
+
+mavenPublishing {
+    coordinates(
+        groupId = "io.github.farimarwat",
+        artifactId = "youtubedl-boom-commons",
+        version = "1.3"
+    )
+    pom {
+        name.set("youtubedl-boom-commons")
+        description.set("Commons that are shared between helper and parent library")
+        url.set("https://github.com/farimarwat/YoutubeDl-Boom")
+        licenses {
+            license {
+                name.set("Apache 2.0 License")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0")
+            }
+        }
+        developers {
+            developer {
+                id.set("farimarwat")
+                name.set("Farman Ullah Marwat")
+                email.set("farimarwat@gmail.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:github.com/farimarwat/YoutubeDl-Boom.git")
+            developerConnection.set("scm:git:ssh://github.com/farimarwat/YoutubeDl-Boom.git")
+            url.set("https://github.com/farimarwat/YoutubeDl-Boom/tree/main")
+        }
+    }
+    publishToMavenCentral()
+    signAllPublications()
 }

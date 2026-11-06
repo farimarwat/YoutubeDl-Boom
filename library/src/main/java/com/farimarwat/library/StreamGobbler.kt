@@ -1,6 +1,5 @@
 package com.farimarwat.library
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -9,24 +8,20 @@ import timber.log.Timber
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.io.Reader
 import java.nio.charset.StandardCharsets
 
-internal class StreamGobbler{
-    private lateinit var buffer: StringBuffer
-    private lateinit var stream: InputStream
-    private val TAG = StreamGobbler::class.java.simpleName
-    fun readStream(buffer:StringBuffer,stream: InputStream):Job = CoroutineScope(Dispatchers.IO).launch {
-        this@StreamGobbler.buffer = buffer
-        this@StreamGobbler.stream = stream
+internal class StreamGobbler {
+    fun readStream(buffer: StringBuffer, stream: InputStream): Job = CoroutineScope(Dispatchers.IO).launch {
         try {
-            val `in`: Reader = InputStreamReader(stream, StandardCharsets.UTF_8)
-            var nextChar: Int
-            while (`in`.read().also { nextChar = it } != -1) {
-                buffer.append(nextChar.toChar())
+            InputStreamReader(stream, StandardCharsets.UTF_8).use { input ->
+                val chars = CharArray(8192)
+                var count: Int
+                while (input.read(chars).also { count = it } != -1) {
+                    buffer.append(chars, 0, count)
+                }
             }
         } catch (e: IOException) {
-           Timber.i("Faile to read stream: ${e}")
+            Timber.i("Failed to read stream: $e")
         }
     }
 }

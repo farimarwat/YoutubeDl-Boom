@@ -1,10 +1,10 @@
 package com.farimarwat.common.utils
 
 import android.system.Os
+import android.system.OsConstants
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
-import org.apache.commons.io.IOUtils
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -29,18 +29,13 @@ object ZipUtils {
                     entryDestination.mkdirs()
                 } else if (entry.isUnixSymlink) {
                     zipFile.getInputStream(entry).use { `in` ->
-                        val symlink = IOUtils.toString(`in`, StandardCharsets.UTF_8)
+                        val symlink = `in`.readBytes().toString(StandardCharsets.UTF_8)
                         Os.symlink(symlink, entryDestination.absolutePath)
                     }
                 } else {
                     entryDestination.parentFile?.mkdirs()
                     zipFile.getInputStream(entry).use { `in` ->
-                        FileOutputStream(entryDestination).use { out ->
-                            IOUtils.copy(
-                                `in`,
-                                out
-                            )
-                        }
+                        FileOutputStream(entryDestination).use { out -> `in`.copyTo(out, 64 * 1024) }
                     }
                 }
             }
@@ -60,7 +55,7 @@ object ZipUtils {
                     entryDestination.mkdirs()
                 } else {
                     entryDestination.parentFile?.mkdirs()
-                    FileOutputStream(entryDestination).use { out -> IOUtils.copy(zis, out) }
+                    FileOutputStream(entryDestination).use { out -> zis.copyTo(out, 64 * 1024) }
                 }
             }
         }
@@ -87,5 +82,24 @@ object ZipUtils {
                 }
             }
         }
+    }
+
+    /**
+     * Deletes [file] and everything under it, ignoring failures. Symlinks are removed, never
+     * followed (the bundles contain symlinks, and Kotlin's deleteRecursively follows them).
+     */
+    internal fun deleteQuietly(file: File?) {
+        if (file == null) return
+        try {
+            if (!isSymlink(file)) file.listFiles()?.forEach { deleteQuietly(it) }
+            file.delete()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun isSymlink(file: File): Boolean = try {
+        OsConstants.S_ISLNK(Os.lstat(file.path).st_mode)
+    } catch (_: Exception) {
+        false
     }
 }

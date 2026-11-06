@@ -5,6 +5,7 @@ import android.os.Build
 import com.farimarwat.aria2c.Aria2c
 import com.farimarwat.common.SharedPrefsHelper
 import com.farimarwat.common.SharedPrefsHelper.update
+import com.farimarwat.common.utils.ZipUtils
 import com.farimarwat.common.utils.ZipUtils.unzip
 import com.farimarwat.commons.UpdateChannel
 import com.farimarwat.commons.UpdateStatus
@@ -25,7 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-import org.apache.commons.io.FileUtils
+import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.Collections
@@ -33,10 +34,15 @@ import java.util.UUID
 import kotlin.collections.set
 
 object YoutubeDL {
+    @Volatile
     private var initialized = false
     private var pythonPath: File? = null
     private var ffmpegPath: File? = null
+    // The precompiled yt-dlp (see prepareYtdlp), or the plain zipapp when compiling failed.
+    @Volatile
     private var ytdlpPath: File? = null
+    private var ytdlpDir: File? = null
+    private var pythonLibSize: String = ""
     private var binDir: File? = null
     private var ENV_LD_LIBRARY_PATH: String? = null
     private var ENV_SSL_CERT_FILE: String? = null
@@ -90,6 +96,8 @@ object YoutubeDL {
     }
 
 
+    // Synchronized: two init() calls at once used to unzip python into the same folder together.
+    @Synchronized
     private fun performInit(appContext: Context) {
         if (initialized) return
         val baseDir = File(appContext.noBackupFilesDir, baseName)
@@ -102,6 +110,7 @@ object YoutubeDL {
         val ffmpegDir = File(packagesDir, ffmpegDirName)
         val aria2cDir = File(packagesDir, aria2cDirName)
         val ytdlpDir = File(baseDir, ytdlpDirName)
+        this.ytdlpDir = ytdlpDir
         ytdlpPath = File(ytdlpDir, ytdlpBin)
         ENV_LD_LIBRARY_PATH = pythonDir.absolutePath + "/usr/lib" + ":" +
                 ffmpegDir.absolutePath + "/usr/lib" + ":" +
@@ -111,6 +120,7 @@ object YoutubeDL {
         TMPDIR = appContext.cacheDir.absolutePath
         initPython(appContext, pythonDir)
         init_ytdlp(appContext,ytdlpDir)
+        prepareYtdlp()
         initialized = true
     }
 
@@ -118,28 +128,82 @@ object YoutubeDL {
     internal fun init_ytdlp(appContext: Context,ytdlpDir: File) {
         if (!ytdlpDir.exists()) ytdlpDir.mkdirs()
         val ytdlpBinary = File(ytdlpDir, ytdlpBin)
-        if (!ytdlpBinary.exists()) {
+        // Also replace a copy older than the bundled one (yt-dlp tags are dates, so they sort as
+        // text). No recorded version means an old library's bundled copy, never updated.
+        val installed = YoutubeDLUpdater.version(appContext)
+        if (!ytdlpBinary.exists() || installed == null || installed < BUNDLED_YTDLP_VERSION) {
             try {
-                val inputStream = appContext.resources.openRawResource(R.raw.ytdlp)
-                FileUtils.copyInputStreamToFile(inputStream, ytdlpBinary)
+                appContext.resources.openRawResource(R.raw.ytdlp).use { input ->
+                    ytdlpBinary.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+                }
             } catch (e: Exception) {
-                FileUtils.deleteQuietly(ytdlpDir)
+                ZipUtils.deleteQuietly(ytdlpDir)
                 throw YoutubeDLException("failed to initialize", e)
             }
+            YoutubeDLUpdater.saveVersion(appContext, BUNDLED_YTDLP_VERSION, "yt-dlp $BUNDLED_YTDLP_VERSION")
         }
     }
+
+    /**
+     * Python never caches bytecode for code run from a zip, so the yt-dlp zipapp was compiled from
+     * source on every getInfo/download. Compile it once into a zip of .pyc files (with the bundled
+     * python, so the bytecode always matches it) and run that. Falls back to the plain zipapp.
+     * Called at init and after every update.
+     */
+    internal fun prepareYtdlp() {
+        val dir = ytdlpDir ?: return
+        val source = File(dir, ytdlpBin)
+        val key = "${source.length()}-${source.lastModified()}-$pythonLibSize".hashCode().toUInt()
+        val compiled = File(dir, "$ytdlpBin-$key.pyz")
+        dir.listFiles()?.forEach {
+            if (it.name.startsWith("$ytdlpBin-") && it.name.endsWith(".pyz") && it != compiled) it.delete()
+        }
+        if (!compiled.exists() && source.exists()) {
+            val tmp = File(dir, compiled.name + ".tmp")
+            try {
+                val process = pythonProcess(listOf(pythonPath!!.absolutePath, "-c", COMPILE_YTDLP, source.absolutePath, tmp.absolutePath))
+                    .redirectErrorStream(true)
+                    .start()
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                if (process.waitFor() == 0 && tmp.renameTo(compiled)) {
+                    Timber.i("yt-dlp precompiled: ${compiled.name}")
+                } else {
+                    Timber.i("yt-dlp precompile failed: $output")
+                }
+            } catch (e: Exception) {
+                Timber.i(e)
+            } finally {
+                tmp.delete()
+            }
+        }
+        ytdlpPath = if (compiled.exists()) compiled else source
+    }
+
+    /** A ProcessBuilder for the bundled python with the environment it needs. */
+    private fun pythonProcess(command: List<String?>): ProcessBuilder =
+        ProcessBuilder(command).apply {
+            environment().apply {
+                this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
+                this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
+                this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
+                this["PYTHONHOME"] = ENV_PYTHONHOME
+                this["HOME"] = ENV_PYTHONHOME
+                this["TMPDIR"] = TMPDIR
+            }
+        }
 
     @Throws(YoutubeDLException::class)
     internal fun initPython(appContext: Context, pythonDir: File) {
         val pythonLib = File(appContext.applicationInfo.nativeLibraryDir, pythonLibName)
         val pythonSize = pythonLib.length().toString()
+        pythonLibSize = pythonSize
         if (!pythonDir.exists() || shouldUpdatePython(appContext, pythonSize)) {
-            FileUtils.deleteQuietly(pythonDir)
+            ZipUtils.deleteQuietly(pythonDir)
             pythonDir.mkdirs()
             try {
                 unzip(pythonLib, pythonDir)
             } catch (e: Exception) {
-                FileUtils.deleteQuietly(pythonDir)
+                ZipUtils.deleteQuietly(pythonDir)
                 throw YoutubeDLException("failed to initialize", e)
             }
             updatePython(appContext, pythonSize)
@@ -225,16 +289,7 @@ object YoutubeDL {
                 val command: MutableList<String?> = ArrayList()
                 command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
                 command.addAll(args)
-                val processBuilder = ProcessBuilder(command).apply {
-                    environment().apply {
-                        this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
-                        this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
-                        this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
-                        this["PYTHONHOME"] = ENV_PYTHONHOME
-                        this["HOME"] = ENV_PYTHONHOME
-                        this["TMPDIR"] = TMPDIR
-                    }
-                }
+                val processBuilder = pythonProcess(command)
 
                 val process: Process = processBuilder.start()
                 streamProcessExtractor = StreamProcessExtractor()
@@ -343,73 +398,72 @@ object YoutubeDL {
                 val command: MutableList<String?> = ArrayList()
                 command.addAll(listOf(pythonPath!!.absolutePath, ytdlpPath!!.absolutePath))
                 command.addAll(args)
-                val processBuilder = ProcessBuilder(command).apply {
-                    environment().apply {
-                        this["LD_LIBRARY_PATH"] = ENV_LD_LIBRARY_PATH
-                        this["SSL_CERT_FILE"] = ENV_SSL_CERT_FILE
-                        this["PATH"] = System.getenv("PATH") + ":" + binDir!!.absolutePath
-                        this["PYTHONHOME"] = ENV_PYTHONHOME
-                        this["HOME"] = ENV_PYTHONHOME
-                        this["TMPDIR"] = TMPDIR
-                    }
-                }
+                val processBuilder = pythonProcess(command)
 
 
                 val process: Process = processBuilder.start()
-                withContext(Dispatchers.Main) {
-                    onStartProcess(processId)
-                }
                 downloadIdProcessMap[processId] = process
-                streamProcessExtractor = StreamProcessExtractor()
-                streamGobbler = StreamGobbler()
-                val stdOutProcessor = streamProcessExtractor?.readStream(
-                    outBuffer,
-                    process.inputStream,
-                    progressCallBack
-                )
-                val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
-                val stdOutFfmpeg = if (request.hasOption("--downloader")) {
-                    val downloader = request.getOption("--downloader").toString()
-                    if (downloader == "ffmpeg") {
-                        ffmpegStreamExtractor = FfmpegStreamExtractor()
-                        ffmpegStreamExtractor?.readStream(process, progressCallBack)
+                try {
+                    withContext(Dispatchers.Main) {
+                        onStartProcess(processId)
+                    }
+                    streamProcessExtractor = StreamProcessExtractor()
+                    streamGobbler = StreamGobbler()
+                    val stdOutProcessor = streamProcessExtractor?.readStream(
+                        outBuffer,
+                        process.inputStream,
+                        progressCallBack
+                    )
+                    val stdErrProcessor = streamGobbler?.readStream(errBuffer, process.errorStream)
+                    val stdOutFfmpeg = if (request.hasOption("--downloader")) {
+                        val downloader = request.getOption("--downloader").toString()
+                        if (downloader == "ffmpeg") {
+                            ffmpegStreamExtractor = FfmpegStreamExtractor()
+                            ffmpegStreamExtractor?.readStream(process, progressCallBack)
+                        } else {
+                            null
+                        }
                     } else {
                         null
                     }
-                } else {
-                    null
-                }
 
-                val exitCode: Int = try {
-                    stdOutProcessor?.join()
-                    stdErrProcessor?.join()
-                    stdOutFfmpeg?.join()
-                    process.waitFor()
-                } catch (e: InterruptedException) {
-                    process.destroy()
-                    downloadIdProcessMap.remove(processId)
-                    throw e
-                }
-
-                val out = outBuffer.toString()
-                val err = errBuffer.toString()
-
-                if (exitCode > 0) {
-                    if (!downloadIdProcessMap.containsKey(processId)) {
-                        val canceledException = CanceledException()
-                        throw canceledException
-                    }
-                    if (!ignoreErrors(request, out)) {
+                    val exitCode: Int = try {
+                        stdOutProcessor?.join()
+                        stdErrProcessor?.join()
+                        stdOutFfmpeg?.join()
+                        process.waitFor()
+                    } catch (e: InterruptedException) {
+                        process.destroy()
                         downloadIdProcessMap.remove(processId)
-                        val youtubeDLException = YoutubeDLException(err)
-                        throw youtubeDLException
+                        throw e
                     }
-                }
-                downloadIdProcessMap.remove(processId)
-                val elapsedTime = System.currentTimeMillis() - startTime
-                val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
-                withContext(Dispatchers.Main) {
-                    onEndProcess(response)
+
+                    val out = outBuffer.toString()
+                    val err = errBuffer.toString()
+
+                    if (exitCode > 0) {
+                        if (!downloadIdProcessMap.containsKey(processId)) {
+                            val canceledException = CanceledException()
+                            throw canceledException
+                        }
+                        if (!ignoreErrors(request, out)) {
+                            downloadIdProcessMap.remove(processId)
+                            val youtubeDLException = YoutubeDLException(err)
+                            throw youtubeDLException
+                        }
+                    }
+                    downloadIdProcessMap.remove(processId)
+                    val elapsedTime = System.currentTimeMillis() - startTime
+                    val response = YoutubeDLResponse(command, exitCode, elapsedTime, out, err)
+                    withContext(Dispatchers.Main) {
+                        onEndProcess(response)
+                    }
+                } finally {
+                    // Cancelling the returned Job (or a throwing callback) used to leave python and
+                    // ffmpeg downloading in the background and the id stuck in downloadIdProcessMap.
+                    if (process.isRunning()) killProcessTree(process)
+                    // Only our own entry: onEndProcess may already have started a download with the same id.
+                    downloadIdProcessMap.remove(processId, process)
                 }
             } catch (e: Exception) {
                 throw e
@@ -431,6 +485,19 @@ object YoutubeDL {
      * and removes it from the map. If running on Android O (API 26+) or higher,
      * it checks whether the process is still alive before destroying it.
      */
+    private fun Process.isRunning(): Boolean = try {
+        exitValue()
+        false
+    } catch (e: IllegalThreadStateException) {
+        true
+    }
+
+    /** Kills ffmpeg/aria2c started by python (if any), then python itself. */
+    private fun killProcessTree(process: Process) {
+        process.getProcessId().getChildProcessId().killProcess()
+        process.destroy()
+    }
+
     fun destroyProcessById(id: String): Boolean {
         if (downloadIdProcessMap.containsKey(id)) {
             val pythonProcess = downloadIdProcessMap[id]
@@ -498,7 +565,25 @@ object YoutubeDL {
     const val ytdlpDirName = "yt-dlp"
     const val ytdlpBin = "yt-dlp"
     private const val pythonLibVersion = "pythonLibVersion"
-    val objectMapper = ObjectMapper()
+    // Version of res/raw/ytdlp. Update together with that file.
+    private const val BUNDLED_YTDLP_VERSION = "2026.10.26"
+
+    // argv: <yt-dlp zipapp> <output>. Writes every .py as a sourceless .pyc (zipimport loads those
+    // without checking a source), everything else as is.
+    private val COMPILE_YTDLP = """
+import sys, zipfile, importlib.util, marshal
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as zout:
+    for info in zin.infolist():
+        data = zin.read(info)
+        if info.filename.endswith('.py'):
+            code = compile(data, info.filename, 'exec', dont_inherit=True)
+            zout.writestr(info.filename + 'c', importlib.util.MAGIC_NUMBER + bytes(12) + marshal.dumps(code))
+        else:
+            zout.writestr(info, data)
+""".trimIndent()
+    // Lazy: building an ObjectMapper is slow and used to run on whichever thread first touched YoutubeDL.
+    val objectMapper: ObjectMapper by lazy { ObjectMapper() }
 
     fun getInstance() = this
 
